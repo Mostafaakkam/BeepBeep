@@ -18,6 +18,9 @@ Beep Beep is a mobile marketplace application designed for local commerce, start
 - JWT-based authentication with middleware
 - Health check endpoint for API monitoring
 - Flutter design system with reusable components
+- Flutter Register screen with MVVM architecture
+- Flutter Login screen with MVVM architecture
+- JWT token storage with SharedPreferences
 
 ### Planned (Not Yet Implemented)
 - Product catalog and browsing
@@ -36,7 +39,6 @@ Beep Beep is a mobile marketplace application designed for local commerce, start
 - Multi-city expansion
 
 ### Explicitly NOT Implemented Yet
-- Flutter Login UI (Login screen)
 - Product display screens
 - Cart functionality
 - Order management
@@ -64,6 +66,7 @@ Beep Beep is a mobile marketplace application designed for local commerce, start
 - **MVVM** - Architecture pattern (implemented for authentication)
 - **google_fonts** - Typography (Poppins font family)
 - **http** - HTTP client for API requests
+- **shared_preferences** - Local data persistence
 - **Material 3** - UI design system
 - **cupertino_icons** - iOS-style icons
 
@@ -400,17 +403,21 @@ Complete database schema documentation is available in: `docs/database.md`
 ## 8. Flutter Features
 
 ### Authentication
-- **Status**: In Progress (Register completed, Login not started)
+- **Status**: ✅ Completed (Register and Login screens implemented)
 - **Related Files**: 
   - `mobail/lib/features/auth/presentation/pages/register_page.dart`
+  - `mobail/lib/features/auth/presentation/pages/login_page.dart`
   - `mobail/lib/features/auth/presentation/viewmodels/register_viewmodel.dart`
+  - `mobail/lib/features/auth/presentation/viewmodels/login_viewmodel.dart`
   - `mobail/lib/data/repositories/auth_repository.dart`
   - `mobail/lib/data/services/api_service.dart`
+  - `mobail/lib/data/services/token_storage.dart`
   - `mobail/lib/data/models/register_request.dart`
   - `mobail/lib/data/models/register_response.dart`
+  - `mobail/lib/data/models/login_models.dart`
   - `mobail/lib/core/utils/validators.dart`
   - `mobail/lib/config/api_config.dart`
-- **Implementation Notes**: Register screen fully implemented with MVVM architecture, client-side validation, API integration, error handling
+- **Implementation Notes**: Both Register and Login screens fully implemented with MVVM architecture, client-side validation, API integration, error handling, JWT token storage
 
 ### Home
 - **Status**: Planned
@@ -588,18 +595,22 @@ mobail/
 │   │   ├── models/
 │   │   │   ├── register_request.dart     # Registration request model
 │   │   │   ├── register_response.dart    # Registration response model
+│   │   │   ├── login_models.dart         # Login request/response models
 │   │   │   └── models.dart               # Barrel export
 │   │   ├── repositories/
 │   │   │   └── auth_repository.dart      # Authentication repository
 │   │   └── services/
-│   │       └── api_service.dart           # HTTP API service
+│   │       ├── api_service.dart           # HTTP API service
+│   │       └── token_storage.dart         # JWT token storage
 │   ├── features/
 │   │   └── auth/
 │   │       └── presentation/
 │   │           ├── pages/
-│   │           │   └── register_page.dart # Register screen
+│   │           │   ├── register_page.dart # Register screen
+│   │           │   └── login_page.dart    # Login screen
 │   │           └── viewmodels/
-│   │               └── register_viewmodel.dart # Register ViewModel
+│   │               ├── register_viewmodel.dart # Register ViewModel
+│   │               └── login_viewmodel.dart    # Login ViewModel
 │   ├── config/
 │   │   └── api_config.dart               # API configuration
 │   ├── design_system_demo.dart           # Design system demo (for reference)
@@ -635,6 +646,7 @@ docs/
 - **Design System Implemented**: Complete visual design system with reusable components
 - **MVVM Architecture Implemented**: Complete MVVM structure with API service layer
 - **Flutter Register Implemented**: Register screen with validation, API integration, error handling
+- **Flutter Login Implemented**: Login screen with validation, API integration, JWT token storage
 
 ## 12. Current Status
 
@@ -649,7 +661,7 @@ docs/
 
 ### Flutter
 - **Design System**: ✅ Completed
-- **Authentication UI**: 🔄 In Progress (Register completed, Login not started)
+- **Authentication UI**: ✅ Completed (Register and Login screens)
 - **Home Screen**: ❌ Not started
 - **Categories Screen**: ❌ Not started
 - **Product Screens**: ❌ Not started
@@ -659,6 +671,7 @@ docs/
 - **MVVM Architecture**: ✅ Completed (implemented for authentication)
 - **API Service Layer**: ✅ Completed
 - **State Management**: ✅ Completed (ChangeNotifier pattern)
+- **JWT Token Storage**: ✅ Completed (SharedPreferences)
 
 ### Database
 - **Initial Schema**: ✅ Completed
@@ -676,11 +689,10 @@ docs/
 ## 13. Pending Work
 
 ### Immediate Next Steps
-- Implement Flutter Login screen UI
-- Implement Flutter Login ViewModel
-- Add JWT token storage (shared_preferences or secure storage)
 - Implement logout functionality
-- Create navigation structure between Register and Login screens
+- Create navigation structure for authenticated vs unauthenticated screens
+- Implement authenticated API requests using stored JWT token
+- Create placeholder Home screen for authenticated users
 
 ### Later Features
 - Product catalog and browsing

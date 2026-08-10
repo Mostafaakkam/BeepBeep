@@ -21,6 +21,19 @@ class AuthRepository {
     }
   }
   
+  Future<LoginResponse> login(LoginRequest request) async {
+    try {
+      final response = await _apiService.post(
+        ApiConfig.login,
+        request.toJson(),
+      );
+      
+      return LoginResponse.fromJson(response);
+    } catch (e) {
+      rethrow;
+    }
+  }
+  
   void dispose() {
     _apiService.dispose();
   }

@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/widgets/app_widgets.dart';
-import '../viewmodels/register_viewmodel.dart';
-import 'login_page.dart';
+import '../viewmodels/login_viewmodel.dart';
+import 'register_page.dart';
 
-class RegisterPage extends StatefulWidget {
-  const RegisterPage({super.key});
+class LoginPage extends StatefulWidget {
+  const LoginPage({super.key});
   
   @override
-  State<RegisterPage> createState() => _RegisterPageState();
+  State<LoginPage> createState() => _LoginPageState();
 }
 
-class _RegisterPageState extends State<RegisterPage> {
-  final RegisterViewModel _viewModel = RegisterViewModel();
+class _LoginPageState extends State<LoginPage> {
+  final LoginViewModel _viewModel = LoginViewModel();
   final _formKey = GlobalKey<FormState>();
   
   @override
@@ -38,19 +38,13 @@ class _RegisterPageState extends State<RegisterPage> {
                   children: [
                     _buildHeader(),
                     const SizedBox(height: AppSpacing.xl),
-                    _buildNameField(),
-                    const SizedBox(height: AppSpacing.md),
-                    _buildPhoneField(),
-                    const SizedBox(height: AppSpacing.md),
                     _buildEmailField(),
                     const SizedBox(height: AppSpacing.md),
                     _buildPasswordField(),
-                    const SizedBox(height: AppSpacing.md),
-                    _buildConfirmPasswordField(),
                     const SizedBox(height: AppSpacing.lg),
-                    _buildRegisterButton(),
+                    _buildLoginButton(),
                     const SizedBox(height: AppSpacing.md),
-                    _buildLoginLink(),
+                    _buildRegisterLink(),
                   ],
                 ),
               ),
@@ -84,41 +78,10 @@ class _RegisterPageState extends State<RegisterPage> {
         ),
         const SizedBox(height: AppSpacing.xs),
         Text(
-          'Create your account',
+          'Welcome back',
           style: Theme.of(context).textTheme.bodyMedium,
         ),
       ],
-    );
-  }
-  
-  Widget _buildNameField() {
-    return ListenableBuilder(
-      listenable: _viewModel,
-      builder: (context, child) {
-        return AppTextField(
-          label: 'Name',
-          hint: 'Enter your full name',
-          errorText: _viewModel.nameError,
-          keyboardType: TextInputType.name,
-          onChanged: _viewModel.setName,
-        );
-      },
-    );
-  }
-  
-  Widget _buildPhoneField() {
-    return ListenableBuilder(
-      listenable: _viewModel,
-      builder: (context, child) {
-        return AppTextField(
-          label: 'Phone',
-          hint: '+963 900 000 000',
-          errorText: _viewModel.phoneError,
-          keyboardType: TextInputType.phone,
-          prefixIcon: const Icon(Icons.phone, size: 20),
-          onChanged: _viewModel.setPhone,
-        );
-      },
     );
   }
   
@@ -144,7 +107,7 @@ class _RegisterPageState extends State<RegisterPage> {
       builder: (context, child) {
         return AppTextField(
           label: 'Password',
-          hint: 'Create a password',
+          hint: 'Enter your password',
           errorText: _viewModel.passwordError,
           obscureText: _viewModel.obscurePassword,
           prefixIcon: const Icon(Icons.lock, size: 20),
@@ -163,61 +126,36 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
   
-  Widget _buildConfirmPasswordField() {
-    return ListenableBuilder(
-      listenable: _viewModel,
-      builder: (context, child) {
-        return AppTextField(
-          label: 'Confirm Password',
-          hint: 'Confirm your password',
-          errorText: _viewModel.confirmPasswordError,
-          obscureText: _viewModel.obscureConfirmPassword,
-          prefixIcon: const Icon(Icons.lock, size: 20),
-          suffixIcon: IconButton(
-            icon: Icon(
-              _viewModel.obscureConfirmPassword
-                  ? Icons.visibility_off
-                  : Icons.visibility,
-              size: 20,
-            ),
-            onPressed: _viewModel.toggleConfirmPasswordVisibility,
-          ),
-          onChanged: _viewModel.setConfirmPassword,
-        );
-      },
-    );
-  }
-  
-  Widget _buildRegisterButton() {
+  Widget _buildLoginButton() {
     return ListenableBuilder(
       listenable: _viewModel,
       builder: (context, child) {
         return AppButton(
-          text: 'Create Account',
+          text: 'Login',
           type: AppButtonType.primary,
           isFullWidth: true,
           isLoading: _viewModel.isLoading,
-          onPressed: _viewModel.isFormValid ? _handleRegister : null,
+          onPressed: _viewModel.isFormValid ? _handleLogin : null,
         );
       },
     );
   }
   
-  Widget _buildLoginLink() {
+  Widget _buildRegisterLink() {
     return Center(
       child: TextButton(
         onPressed: () {
           Navigator.of(context).push(
-            MaterialPageRoute(builder: (context) => const LoginPage()),
+            MaterialPageRoute(builder: (context) => const RegisterPage()),
           );
         },
         child: Text.rich(
           TextSpan(
-            text: 'Already have an account? ',
+            text: "Don't have an account? ",
             style: Theme.of(context).textTheme.bodyMedium,
             children: [
               TextSpan(
-                text: 'Login',
+                text: 'Register',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: AppColors.primary,
                   fontWeight: FontWeight.w600,
@@ -230,10 +168,10 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
   
-  Future<void> _handleRegister() async {
+  Future<void> _handleLogin() async {
     _viewModel.clearMessages();
     
-    final success = await _viewModel.register();
+    final success = await _viewModel.login();
     
     if (success && mounted) {
       _showSuccessDialog();
@@ -247,17 +185,27 @@ class _RegisterPageState extends State<RegisterPage> {
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: const Text('Registration Successful'),
-        content: const Text('Your account has been created successfully!'),
+        title: const Text('Login Successful'),
+        content: const Text('You have been logged in successfully!'),
         actions: [
           TextButton(
             onPressed: () {
               Navigator.of(context).pop();
-              // Navigate to login (will be implemented later)
+              // Navigate to home (placeholder for now)
+              _showHomePlaceholder();
             },
-            child: const Text('OK'),
+            child: const Text('Continue'),
           ),
         ],
+      ),
+    );
+  }
+  
+  void _showHomePlaceholder() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Home screen coming soon - you are now logged in'),
+        duration: Duration(seconds: 3),
       ),
     );
   }
@@ -265,7 +213,7 @@ class _RegisterPageState extends State<RegisterPage> {
   void _showErrorSnackBar() {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(_viewModel.errorMessage ?? 'Registration failed'),
+        content: Text(_viewModel.errorMessage ?? 'Login failed'),
         backgroundColor: AppColors.error,
         duration: const Duration(seconds: 3),
       ),
