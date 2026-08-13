@@ -1,0 +1,6 @@
+{
+  "permissions": {
+    "allow": ["Write(**)", "Exec(**)"],
+    "ask": ["Exec(git commit)", "Exec(git push)", "Exec(git)", "Exec(commit)", "Exec(git merge)"]
+  }
+}

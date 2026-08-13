@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/widgets/app_widgets.dart';
+import '../../../home/presentation/pages/home_page.dart';
 import '../viewmodels/login_viewmodel.dart';
 import 'register_page.dart';
 
@@ -58,18 +59,9 @@ class _LoginPageState extends State<LoginPage> {
   Widget _buildHeader() {
     return Column(
       children: [
-        Container(
-          width: 80,
-          height: 80,
-          decoration: BoxDecoration(
-            color: AppColors.primary,
-            borderRadius: BorderRadius.circular(AppBorderRadius.lg),
-          ),
-          child: const Icon(
-            Icons.shopping_bag,
-            size: 40,
-            color: AppColors.white,
-          ),
+        const BrandLogo(
+          size: 80,
+          showBackground: true,
         ),
         const SizedBox(height: AppSpacing.md),
         Text(
@@ -174,40 +166,13 @@ class _LoginPageState extends State<LoginPage> {
     final success = await _viewModel.login();
     
     if (success && mounted) {
-      _showSuccessDialog();
+      // Navigate to HomePage after successful login
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (context) => const HomePage()),
+      );
     } else if (_viewModel.errorMessage != null && mounted) {
       _showErrorSnackBar();
     }
-  }
-  
-  void _showSuccessDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: const Text('Login Successful'),
-        content: const Text('You have been logged in successfully!'),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              // Navigate to home (placeholder for now)
-              _showHomePlaceholder();
-            },
-            child: const Text('Continue'),
-          ),
-        ],
-      ),
-    );
-  }
-  
-  void _showHomePlaceholder() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Home screen coming soon - you are now logged in'),
-        duration: Duration(seconds: 3),
-      ),
-    );
   }
   
   void _showErrorSnackBar() {

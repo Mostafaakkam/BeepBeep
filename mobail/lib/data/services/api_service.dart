@@ -9,15 +9,22 @@ class ApiService {
   
   Future<Map<String, dynamic>> post(
     String endpoint,
-    Map<String, dynamic> body,
-  ) async {
+    Map<String, dynamic> body, {
+    String? token,
+  }) async {
     try {
+      final headers = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (token != null) {
+        headers['Authorization'] = 'Bearer $token';
+      }
+      
       final response = await _client
           .post(
             Uri.parse('${ApiConfig.baseUrl}$endpoint'),
-            headers: {
-              'Content-Type': 'application/json',
-            },
+            headers: headers,
             body: jsonEncode(body),
           )
           .timeout(ApiConfig.timeout);
@@ -43,6 +50,60 @@ class ApiService {
       
       final response = await _client
           .get(
+            Uri.parse('${ApiConfig.baseUrl}$endpoint'),
+            headers: headers,
+          )
+          .timeout(ApiConfig.timeout);
+      
+      return _handleResponse(response);
+    } catch (e) {
+      throw _handleError(e);
+    }
+  }
+  
+  Future<Map<String, dynamic>> patch(
+    String endpoint,
+    Map<String, dynamic> body, {
+    String? token,
+  }) async {
+    try {
+      final headers = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (token != null) {
+        headers['Authorization'] = 'Bearer $token';
+      }
+      
+      final response = await _client
+          .patch(
+            Uri.parse('${ApiConfig.baseUrl}$endpoint'),
+            headers: headers,
+            body: jsonEncode(body),
+          )
+          .timeout(ApiConfig.timeout);
+      
+      return _handleResponse(response);
+    } catch (e) {
+      throw _handleError(e);
+    }
+  }
+  
+  Future<Map<String, dynamic>> delete(
+    String endpoint, {
+    String? token,
+  }) async {
+    try {
+      final headers = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (token != null) {
+        headers['Authorization'] = 'Bearer $token';
+      }
+      
+      final response = await _client
+          .delete(
             Uri.parse('${ApiConfig.baseUrl}$endpoint'),
             headers: headers,
           )

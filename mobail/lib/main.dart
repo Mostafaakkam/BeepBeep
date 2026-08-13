@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'core/theme/app_theme.dart';
 import 'core/widgets/app_widgets.dart';
 import 'core/constants/app_constants.dart';
-import 'features/auth/presentation/pages/login_page.dart';
+import 'features/auth/presentation/pages/splash_page.dart';
 
 void main() {
   runApp(const BeepBeepApp());
@@ -16,7 +16,7 @@ class BeepBeepApp extends StatelessWidget {
     return MaterialApp(
       title: 'Beep Beep',
       theme: AppTheme.lightTheme,
-      home: const LoginPage(),
+      home: const SplashPage(),
     );
   }
 }

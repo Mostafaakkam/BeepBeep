@@ -6,5 +6,12 @@ class ApiConfig {
   static const String login = '$auth/login';
   static const String me = '$auth/me';
   
+  static const String stores = '/stores';
+  static const String products = '/products';
+  static const String cart = '/cart';
+  static const String orders = '/orders';
+  static const String search = '/search';
+  static const String favorites = '/favorites';
+  
   static const Duration timeout = Duration(seconds: 30);
 }

@@ -20,22 +20,53 @@ Beep Beep is a mobile marketplace application designed for local commerce, start
 - Flutter design system with reusable components
 - Flutter Register screen with MVVM architecture
 - Flutter Login screen with MVVM architecture
-- JWT token storage with SharedPreferences
+- Flutter Splash screen with animation
+- Authentication state management
+- Startup routing based on JWT token
+- Centralized branding widget for logo replacement
+- Flutter Home screen with MVVM architecture
+- Bottom navigation structure for marketplace
+- Professional marketplace UI with design system
+- Complete authentication lifecycle with logout functionality
+- Profile screen with logout action
+- Stores API endpoint with active stores retrieval
+- Flutter Stores screen with MVVM architecture
+- Real store data integration in Home screen
+- Products API endpoint with filtering and details
+- Flutter Products screen with MVVM architecture
+- Product Details screen with variants and images
+- Store → Products navigation flow
+- Shopping Cart API with authentication and variant support
+- Flutter Cart screen with MVVM architecture
+- Add to Cart functionality in Product Details
+- Cart badge showing item count
+- Cart persistence for authenticated users
+- Orders API with transaction support and stock management
+- Flutter Orders screen with MVVM architecture
+- Checkout screen with delivery information and Cash on Delivery
+- Order success screen with order confirmation
+- Order details screen with full order information
+- Order cancellation for pending orders
+- Profile integration with My Orders access
+- Search API with products and stores search
+- Flutter Search screen with MVVM architecture
+- Home screen search field integration
+- Debounced search behavior
+- Favorites API with user-specific product bookmarking
+- Flutter Favorites screen with MVVM architecture
+- Favorite button in Product Details with authentication check
+- Profile integration with My Favorites access
 
 ### Planned (Not Yet Implemented)
-- Product catalog and browsing
-- Store management
-- Shopping cart functionality
-- Order processing and management
-- User profile management
-- Favorites/wishlist functionality
+- Order management dashboard for store owners
+- Admin dashboard
+- Advanced delivery pricing
+- Payment gateway integration (Stripe, PayPal, etc.)
+- User profile management beyond logout
 - Address management
 - Category browsing
-- Search functionality
-- Admin dashboard
 - Store owner accounts
 - Delivery driver integration
-- Payment processing
 - Multi-city expansion
 
 ### Explicitly NOT Implemented Yet
@@ -403,12 +434,15 @@ Complete database schema documentation is available in: `docs/database.md`
 ## 8. Flutter Features
 
 ### Authentication
-- **Status**: ✅ Completed (Register and Login screens implemented)
+- **Status**: ✅ Completed (Register, Login, Splash screens implemented)
 - **Related Files**: 
   - `mobail/lib/features/auth/presentation/pages/register_page.dart`
   - `mobail/lib/features/auth/presentation/pages/login_page.dart`
+  - `mobail/lib/features/auth/presentation/pages/splash_page.dart`
+  - `mobail/lib/features/auth/presentation/pages/authenticated_placeholder_page.dart`
   - `mobail/lib/features/auth/presentation/viewmodels/register_viewmodel.dart`
   - `mobail/lib/features/auth/presentation/viewmodels/login_viewmodel.dart`
+  - `mobail/lib/features/auth/presentation/viewmodels/auth_viewmodel.dart`
   - `mobail/lib/data/repositories/auth_repository.dart`
   - `mobail/lib/data/services/api_service.dart`
   - `mobail/lib/data/services/token_storage.dart`
@@ -417,7 +451,7 @@ Complete database schema documentation is available in: `docs/database.md`
   - `mobail/lib/data/models/login_models.dart`
   - `mobail/lib/core/utils/validators.dart`
   - `mobail/lib/config/api_config.dart`
-- **Implementation Notes**: Both Register and Login screens fully implemented with MVVM architecture, client-side validation, API integration, error handling, JWT token storage
+- **Implementation Notes**: Complete authentication flow with MVVM architecture, client-side validation, API integration, error handling, JWT token storage, splash screen with animation, authentication state management, startup routing
 
 ### Home
 - **Status**: Planned
@@ -551,16 +585,41 @@ backend/
 │   │   └── database.js          # MySQL connection pool configuration
 │   ├── controllers/
 │   │   ├── authController.js    # Authentication request handling
-│   │   └── healthController.js  # Health check endpoint
+│   │   ├── healthController.js  # Health check endpoint
+│   │   ├── storeController.js   # Store request handling
+│   │   ├── productController.js # Product request handling
+│   │   ├── cartController.js    # Cart request handling
+│   │   ├── orderController.js   # Order request handling
+│   │   ├── searchController.js  # Search request handling
+│   │   └── favoriteController.js # Favorite request handling
 │   ├── middlewares/
 │   │   └── authMiddleware.js    # JWT authentication middleware
 │   ├── repositories/
-│   │   └── userRepository.js     # User data access layer
+│   │   ├── userRepository.js     # User data access layer
+│   │   ├── storeRepository.js   # Store data access layer
+│   │   ├── productRepository.js # Product data access layer
+│   │   ├── cartRepository.js    # Cart data access layer
+│   │   ├── orderRepository.js   # Order data access layer
+│   │   ├── searchRepository.js  # Search data access layer
+│   │   └── favoriteRepository.js # Favorite data access layer
 │   ├── routes/
 │   │   ├── authRoutes.js        # Authentication routes
-│   │   └── healthRoutes.js      # Health check routes
+│   │   ├── healthRoutes.js      # Health check routes
+│   │   ├── storeRoutes.js       # Store routes
+│   │   ├── productRoutes.js     # Product routes
+│   │   ├── cartRoutes.js        # Cart routes
+│   │   ├── orderRoutes.js       # Order routes
+│   │   ├── searchRoutes.js      # Search routes
+│   │   └── favoriteRoutes.js    # Favorite routes
 │   ├── services/
-│   │   └── authService.js       # Authentication business logic
+│   │   ├── authService.js       # Authentication business logic
+│   │   ├── storeService.js      # Store business logic
+│   │   ├── productService.js    # Product business logic
+│   │   ├── cartService.js       # Cart business logic
+│   │   ├── orderService.js      # Order business logic
+│   │   ├── searchService.js     # Search business logic
+│   │   └── favoriteService.js   # Favorite business logic
+│   │   └── orderService.js      # Order business logic
 │   ├── utils/                   # Utility functions (empty, ready for use)
 │   ├── validators/              # Input validators (empty, ready for use)
 │   ├── app.js                   # Express app configuration
@@ -576,6 +635,9 @@ backend/
 mobail/
 ├── lib/
 │   ├── core/
+│   │   ├── branding/
+│   │   │   ├── brand_logo.dart            # Centralized branding widget
+│   │   │   └── branding.dart             # Barrel export
 │   │   ├── constants/
 │   │   │   ├── app_colors.dart           # Color palette
 │   │   │   ├── app_spacing.dart          # Spacing constants
@@ -596,21 +658,85 @@ mobail/
 │   │   │   ├── register_request.dart     # Registration request model
 │   │   │   ├── register_response.dart    # Registration response model
 │   │   │   ├── login_models.dart         # Login request/response models
+│   │   │   ├── store_model.dart          # Store model
+│   │   │   ├── product_model.dart       # Product model
+│   │   │   ├── product_image_model.dart # Product image model
+│   │   │   ├── product_variant_model.dart # Product variant model
+│   │   │   ├── cart_model.dart            # Cart model
+│   │   │   ├── cart_item_model.dart       # Cart item model
+│   │   │   ├── cart_product_model.dart    # Cart product model
+│   │   │   ├── order_model.dart           # Order model
+│   │   │   ├── order_item_model.dart      # Order item model
 │   │   │   └── models.dart               # Barrel export
 │   │   ├── repositories/
-│   │   │   └── auth_repository.dart      # Authentication repository
+│   │   │   ├── auth_repository.dart      # Authentication repository
+│   │   │   ├── store_repository.dart      # Store repository
+│   │   │   ├── product_repository.dart    # Product repository
+│   │   │   ├── cart_repository.dart       # Cart repository
+│   │   │   ├── order_repository.dart      # Order repository
+│   │   │   └── favorite_repository.dart   # Favorite repository
 │   │   └── services/
 │   │       ├── api_service.dart           # HTTP API service
 │   │       └── token_storage.dart         # JWT token storage
 │   ├── features/
-│   │   └── auth/
+│   │   ├── auth/
+│   │   │   └── presentation/
+│   │   │       ├── pages/
+│   │   │       │   ├── register_page.dart # Register screen
+│   │   │       │   ├── login_page.dart    # Login screen
+│   │   │       │   └── splash_page.dart  # Splash screen
+│   │   │       └── viewmodels/
+│   │   │           ├── register_viewmodel.dart # Register ViewModel
+│   │   │           ├── login_viewmodel.dart    # Login ViewModel
+│   │   │           └── auth_viewmodel.dart    # Auth state ViewModel
+│   │   ├── home/
+│   │   │   └── presentation/
+│   │   │       ├── pages/
+│   │   │       │   ├── home_page.dart    # Home screen
+│   │   │       │   └── profile_page.dart # Profile screen with logout
+│   │   │       └── viewmodels/
+│   │   │           └── home_viewmodel.dart # Home ViewModel
+│   │   └── stores/
 │   │       └── presentation/
 │   │           ├── pages/
-│   │           │   ├── register_page.dart # Register screen
-│   │           │   └── login_page.dart    # Login screen
+│   │           │   └── stores_page.dart   # Stores screen
 │   │           └── viewmodels/
-│   │               ├── register_viewmodel.dart # Register ViewModel
-│   │               └── login_viewmodel.dart    # Login ViewModel
+│   │               └── store_viewmodel.dart # Store ViewModel
+│   └── products/
+│       └── presentation/
+│           ├── pages/
+│           │   ├── products_page.dart     # Products screen
+│           │   └── product_details_page.dart # Product details screen
+│           └── viewmodels/
+│               ├── product_viewmodel.dart   # Product ViewModel
+│               └── product_detail_viewmodel.dart # Product detail ViewModel
+│   └── cart/
+│       └── presentation/
+│           ├── pages/
+│           │   └── cart_page.dart           # Cart screen
+│           └── viewmodels/
+│               └── cart_viewmodel.dart       # Cart ViewModel
+│   └── orders/
+│       └── presentation/
+│           ├── pages/
+│           │   ├── checkout_page.dart       # Checkout screen
+│           │   ├── order_success_page.dart  # Order success screen
+│           │   ├── orders_page.dart          # Orders list screen
+│           │   └── order_details_page.dart  # Order details screen
+│           └── viewmodels/
+│               └── order_viewmodel.dart      # Order ViewModel
+│   └── search/
+│       └── presentation/
+│           ├── pages/
+│           │   └── search_page.dart          # Search screen
+│           └── viewmodels/
+│               └── search_viewmodel.dart      # Search ViewModel
+│   └── favorites/
+│       └── presentation/
+│           ├── pages/
+│           │   └── favorites_page.dart        # Favorites screen
+│           └── viewmodels/
+│               └── favorite_viewmodel.dart     # Favorite ViewModel
 │   ├── config/
 │   │   └── api_config.dart               # API configuration
 │   ├── design_system_demo.dart           # Design system demo (for reference)
@@ -647,6 +773,27 @@ docs/
 - **MVVM Architecture Implemented**: Complete MVVM structure with API service layer
 - **Flutter Register Implemented**: Register screen with validation, API integration, error handling
 - **Flutter Login Implemented**: Login screen with validation, API integration, JWT token storage
+- **Flutter Splash Screen Implemented**: Splash screen with animation and authentication state checking
+- **Authentication State Management Implemented**: AuthViewModel for managing authentication state
+- **Startup Routing Implemented**: Navigation based on JWT token presence
+- **Centralized Branding Structure Implemented**: BrandLogo widget for easy logo replacement
+- **Flutter Home Screen Implemented**: Professional marketplace Home screen with MVVM architecture
+- **Bottom Navigation Structure Implemented**: Navigation structure for marketplace features
+- **Home UI Implemented**: Professional marketplace UI with design system components
+- **Profile Screen Implemented**: Basic profile screen with logout functionality
+- **Logout Functionality Implemented**: Complete authentication lifecycle with token clearing
+- **Authentication Lifecycle Complete**: Register → Login → Home → Logout → Login
+- **Stores API Implemented**: Backend endpoints for retrieving active stores
+- **Stores Feature Implemented**: Flutter Stores screen with real data integration
+- **Home Stores Integration**: Featured Stores section displays real store data
+- **Products API Implemented**: Backend endpoints for product catalog with filtering
+- **Products Feature Implemented**: Flutter Products screen with MVVM architecture
+- **Product Details Implemented**: Product details screen with variants and images
+- **Store → Products Flow**: Navigation from stores to their products
+- **Cart API Implemented**: Backend endpoints for shopping cart with authentication
+- **Cart Feature Implemented**: Flutter Cart screen with MVVM architecture
+- **Add to Cart Implemented**: Functional Add to Cart in Product Details
+- **Cart Badge Implemented**: Item count badge in navigation
 
 ## 12. Current Status
 
@@ -689,10 +836,10 @@ docs/
 ## 13. Pending Work
 
 ### Immediate Next Steps
-- Implement logout functionality
-- Create navigation structure for authenticated vs unauthenticated screens
-- Implement authenticated API requests using stored JWT token
-- Create placeholder Home screen for authenticated users
+- Implement Order processing and management
+- Create Checkout flow
+- Add payment processing integration
+- Implement authenticated API requests using stored JWT token for order operations
 
 ### Later Features
 - Product catalog and browsing

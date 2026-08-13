@@ -64,18 +64,9 @@ class _RegisterPageState extends State<RegisterPage> {
   Widget _buildHeader() {
     return Column(
       children: [
-        Container(
-          width: 80,
-          height: 80,
-          decoration: BoxDecoration(
-            color: AppColors.primary,
-            borderRadius: BorderRadius.circular(AppBorderRadius.lg),
-          ),
-          child: const Icon(
-            Icons.shopping_bag,
-            size: 40,
-            color: AppColors.white,
-          ),
+        const BrandLogo(
+          size: 80,
+          showBackground: true,
         ),
         const SizedBox(height: AppSpacing.md),
         Text(
@@ -253,9 +244,12 @@ class _RegisterPageState extends State<RegisterPage> {
           TextButton(
             onPressed: () {
               Navigator.of(context).pop();
-              // Navigate to login (will be implemented later)
+              // Navigate to login
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (context) => const LoginPage()),
+              );
             },
-            child: const Text('OK'),
+            child: const Text('Go to Login'),
           ),
         ],
       ),
