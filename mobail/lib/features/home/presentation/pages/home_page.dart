@@ -11,6 +11,7 @@ import '../../../cart/presentation/pages/cart_page.dart';
 import '../../../cart/presentation/viewmodels/cart_viewmodel.dart';
 import '../../../search/presentation/pages/search_page.dart';
 import '../../../auth/presentation/viewmodels/auth_viewmodel.dart';
+import '../../../categories/presentation/viewmodels/category_viewmodel.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -24,6 +25,7 @@ class _HomePageState extends State<HomePage> {
   final StoreViewModel _storeViewModel = StoreViewModel();
   final CartViewModel _cartViewModel = CartViewModel();
   final AuthViewModel _authViewModel = AuthViewModel();
+  final CategoryViewModel _categoryViewModel = CategoryViewModel();
   int _selectedIndex = 0;
   
   @override
@@ -33,6 +35,7 @@ class _HomePageState extends State<HomePage> {
     _viewModel.loadUserData();
     _storeViewModel.loadStores();
     _cartViewModel.loadCart();
+    _categoryViewModel.loadCategories();
   }
   
   @override
@@ -41,6 +44,7 @@ class _HomePageState extends State<HomePage> {
     _storeViewModel.dispose();
     _cartViewModel.dispose();
     _authViewModel.dispose();
+    _categoryViewModel.dispose();
     super.dispose();
   }
   
@@ -198,65 +202,145 @@ class _HomePageState extends State<HomePage> {
   }
   
   Widget _buildCategoriesSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Categories',
-          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-            color: AppColors.darkNavy,
-          ),
-        ),
-        const SizedBox(height: AppSpacing.md),
-        SizedBox(
-          height: 100,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            itemCount: 6,
-            itemBuilder: (context, index) {
-              return _buildCategoryItem(_getCategoryName(index));
-            },
-          ),
-        ),
-      ],
+    return ListenableBuilder(
+      listenable: _categoryViewModel,
+      builder: (context, child) {
+        if (_categoryViewModel.isLoading) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Categories',
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                  color: AppColors.darkNavy,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              const SizedBox(
+                height: 100,
+                child: Center(
+                  child: CircularProgressIndicator(
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+            ],
+          );
+        }
+        
+        if (_categoryViewModel.isError) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Categories',
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                  color: AppColors.darkNavy,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              SizedBox(
+                height: 100,
+                child: Center(
+                  child: AppButton(
+                    text: 'Retry',
+                    type: AppButtonType.secondary,
+                    onPressed: _categoryViewModel.retry,
+                  ),
+                ),
+              ),
+            ],
+          );
+        }
+        
+        if (!_categoryViewModel.hasCategories) {
+          return const SizedBox.shrink();
+        }
+        
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Categories',
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    color: AppColors.darkNavy,
+                  ),
+                ),
+                TextButton(
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.primary,
+                  ),
+                  onPressed: () {
+                    // Navigate to full categories page
+                  },
+                  child: const Text('See All'),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.md),
+            SizedBox(
+              height: 100,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: _categoryViewModel.categories.length,
+                itemBuilder: (context, index) {
+                  return _buildCategoryItem(_categoryViewModel.categories[index]);
+                },
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
   
-  Widget _buildCategoryItem(String name) {
+  Widget _buildCategoryItem(CategoryModel category) {
     return Container(
       width: 80,
       margin: const EdgeInsets.only(right: AppSpacing.md),
       child: Column(
         children: [
-          Container(
-            width: 60,
-            height: 60,
-            decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(AppBorderRadius.md),
-            ),
-            child: const Icon(
-              Icons.category,
-              color: AppColors.primary,
-              size: 24,
+          InkWell(
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => ProductsPage(
+                    categoryId: category.id,
+                    categoryName: category.name,
+                  ),
+                ),
+              );
+            },
+            child: Container(
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(AppBorderRadius.md),
+              ),
+              child: const Icon(
+                Icons.category,
+                color: AppColors.primary,
+                size: 24,
+              ),
             ),
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            name,
+            category.name,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: AppColors.gray,
+              color: AppColors.darkNavy,
             ),
             textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
     );
-  }
-  
-  String _getCategoryName(int index) {
-    final categories = ['Clothing', 'Shoes', 'Cosmetics', 'Games', 'Electronics', 'More'];
-    return categories[index];
   }
   
   Widget _buildFeaturedSection() {

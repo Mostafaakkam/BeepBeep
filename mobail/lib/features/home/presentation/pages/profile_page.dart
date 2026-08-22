@@ -5,6 +5,7 @@ import '../../../auth/presentation/viewmodels/auth_viewmodel.dart';
 import '../../../auth/presentation/pages/login_page.dart';
 import '../../../orders/presentation/pages/orders_page.dart';
 import '../../../favorites/presentation/pages/favorites_page.dart';
+import '../../../addresses/presentation/pages/addresses_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -146,6 +147,8 @@ class _ProfilePageState extends State<ProfilePage> {
                 const SizedBox(height: AppSpacing.md),
                 _buildMyFavoritesButton(),
                 const SizedBox(height: AppSpacing.md),
+                _buildMyAddressesButton(),
+                const SizedBox(height: AppSpacing.md),
                 _buildLogoutButton(),
               ],
             ),
@@ -200,6 +203,21 @@ class _ProfilePageState extends State<ProfilePage> {
         Navigator.of(context).push(
           MaterialPageRoute(
             builder: (context) => const FavoritesPage(),
+          ),
+        );
+      },
+    );
+  }
+  
+  Widget _buildMyAddressesButton() {
+    return AppButton(
+      text: 'My Addresses',
+      type: AppButtonType.secondary,
+      isFullWidth: true,
+      onPressed: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => const AddressesPage(),
           ),
         );
       },

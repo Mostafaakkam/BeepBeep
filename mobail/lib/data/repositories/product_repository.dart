@@ -8,14 +8,31 @@ class ProductRepository {
   ProductRepository({ApiService? apiService})
       : _apiService = apiService ?? ApiService();
   
-  Future<List<Product>> getAllProducts({int? storeId}) async {
+  Future<List<Product>> getAllProducts({
+    int? storeId,
+    int? categoryId,
+    double? minPrice,
+    double? maxPrice,
+    bool inStock = false,
+    String sortBy = 'newest',
+  }) async {
     try {
-      String endpoint = ApiConfig.products;
-      if (storeId != null) {
-        endpoint += '?store_id=$storeId';
-      }
+      final queryParams = <String, dynamic>{};
       
-      final response = await _apiService.get(endpoint);
+      if (storeId != null) queryParams['store_id'] = storeId.toString();
+      if (categoryId != null) queryParams['category_id'] = categoryId.toString();
+      if (minPrice != null) queryParams['min_price'] = minPrice.toString();
+      if (maxPrice != null) queryParams['max_price'] = maxPrice.toString();
+      if (inStock) queryParams['in_stock'] = 'true';
+      queryParams['sort'] = sortBy;
+      
+      final queryString = queryParams.entries
+          .map((e) => '${e.key}=${e.value}')
+          .join('&');
+      
+      final response = await _apiService.get(
+        '${ApiConfig.products}?$queryString',
+      );
       
       if (response['success'] == true && response['data'] != null) {
         final List<dynamic> productsData = response['data'] as List<dynamic>;

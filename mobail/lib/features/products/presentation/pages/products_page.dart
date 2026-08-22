@@ -4,15 +4,20 @@ import '../../../../core/widgets/app_widgets.dart';
 import '../viewmodels/product_viewmodel.dart';
 import '../../../../data/models/models.dart';
 import 'product_details_page.dart';
+import 'product_filter_sheet.dart';
 
 class ProductsPage extends StatefulWidget {
   final int? storeId;
   final String? storeName;
+  final int? categoryId;
+  final String? categoryName;
   
   const ProductsPage({
     super.key,
     this.storeId,
     this.storeName,
+    this.categoryId,
+    this.categoryName,
   });
   
   @override
@@ -25,7 +30,12 @@ class _ProductsPageState extends State<ProductsPage> {
   @override
   void initState() {
     super.initState();
-    _viewModel.loadProducts(storeId: widget.storeId);
+    _viewModel.loadProducts(
+      storeId: widget.storeId,
+      categoryId: widget.categoryId,
+      storeName: widget.storeName,
+      categoryName: widget.categoryName,
+    );
   }
   
   @override
@@ -63,24 +73,111 @@ class _ProductsPageState extends State<ProductsPage> {
           ),
         ],
       ),
-      child: Row(
+      child: Column(
         children: [
-          if (widget.storeId != null) ...[
-            IconButton(
-              icon: const Icon(Icons.arrow_back),
-              onPressed: () => Navigator.of(context).pop(),
-            ),
-          ],
-          Expanded(
-            child: Text(
-              widget.storeName != null ? '${widget.storeName} Products' : 'Products',
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                color: AppColors.darkNavy,
-                fontWeight: FontWeight.bold,
+          Row(
+            children: [
+              if (widget.storeId != null || widget.categoryId != null) ...[
+                IconButton(
+                  icon: const Icon(Icons.arrow_back),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ],
+              Expanded(
+                child: Text(
+                  widget.storeName != null 
+                      ? '${widget.storeName} Products'
+                      : widget.categoryName != null
+                          ? '${widget.categoryName} Products'
+                          : 'Products',
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    color: AppColors.darkNavy,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
-            ),
+              IconButton(
+                icon: const Icon(Icons.filter_list),
+                onPressed: _showFilterSheet,
+              ),
+            ],
           ),
+          if (_viewModel.hasFilters) _buildFilterChips(),
         ],
+      ),
+    );
+  }
+  
+  Widget _buildFilterChips() {
+    return ListenableBuilder(
+      listenable: _viewModel,
+      builder: (context, child) {
+        return Padding(
+          padding: const EdgeInsets.only(top: AppSpacing.sm),
+          child: Wrap(
+            spacing: AppSpacing.sm,
+            children: [
+              if (_viewModel.filter.categoryName != null)
+                _buildFilterChip(
+                  _viewModel.filter.categoryName!,
+                  () => _viewModel.clearFilters(),
+                ),
+              if (_viewModel.filter.storeName != null)
+                _buildFilterChip(
+                  _viewModel.filter.storeName!,
+                  () => _viewModel.clearFilters(),
+                ),
+              if (_viewModel.filter.hasPriceFilter)
+                _buildFilterChip(
+                  _viewModel.filter.priceRange,
+                  () => _viewModel.clearFilters(),
+                ),
+              if (_viewModel.filter.inStock)
+                _buildFilterChip(
+                  'In Stock',
+                  () => _viewModel.clearFilters(),
+                ),
+              _buildFilterChip(
+                _viewModel.filter.sortLabel,
+                () => _showFilterSheet(),
+              ),
+              TextButton(
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                ),
+                onPressed: _viewModel.clearFilters,
+                child: const Text('Clear All'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+  
+  Widget _buildFilterChip(String label, VoidCallback onRemove) {
+    return Chip(
+      label: Text(label),
+      deleteIcon: const Icon(Icons.close, size: 18),
+      onDeleted: onRemove,
+      backgroundColor: AppColors.lightBlue.withOpacity(0.2),
+      deleteIconColor: AppColors.primary,
+      labelStyle: const TextStyle(
+        color: AppColors.darkNavy,
+        fontSize: 12,
+      ),
+    );
+  }
+  
+  void _showFilterSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => ProductFilterSheet(
+        initialFilter: _viewModel.filter,
+        onApply: (filter) {
+          _viewModel.applyFilter(filter);
+        },
       ),
     );
   }
@@ -147,6 +244,8 @@ class _ProductsPageState extends State<ProductsPage> {
   }
   
   Widget _buildEmptyState() {
+    final hasFilters = _viewModel.hasFilters;
+    
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
@@ -160,20 +259,32 @@ class _ProductsPageState extends State<ProductsPage> {
             ),
             const SizedBox(height: AppSpacing.md),
             Text(
-              'No products available',
+              hasFilters ? 'No products match your filters' : 'No products available',
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                 color: AppColors.darkNavy,
               ),
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
-              widget.storeName != null 
-                  ? 'This store has no products yet'
-                  : 'Check back later for new products',
+              hasFilters
+                  ? 'Try adjusting your filters or clearing them'
+                  : widget.storeName != null 
+                      ? 'This store has no products yet'
+                      : widget.categoryName != null
+                          ? 'This category has no products yet'
+                          : 'Check back later for new products',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: AppColors.gray,
               ),
             ),
+            if (hasFilters) ...[
+              const SizedBox(height: AppSpacing.lg),
+              AppButton(
+                text: 'Clear Filters',
+                type: AppButtonType.primary,
+                onPressed: _viewModel.clearFilters,
+              ),
+            ],
           ],
         ),
       ),

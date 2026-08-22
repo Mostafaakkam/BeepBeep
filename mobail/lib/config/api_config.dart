@@ -12,6 +12,8 @@ class ApiConfig {
   static const String orders = '/orders';
   static const String search = '/search';
   static const String favorites = '/favorites';
+  static const String addresses = '/addresses';
+  static const String categories = '/categories';
   
   static const Duration timeout = Duration(seconds: 30);
 }

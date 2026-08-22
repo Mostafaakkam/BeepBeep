@@ -10,3 +10,6 @@ export 'cart_item_model.dart';
 export 'cart_product_model.dart';
 export 'order_model.dart';
 export 'order_item_model.dart';
+export 'address_model.dart';
+export 'category_model.dart';
+export 'product_filter.dart';

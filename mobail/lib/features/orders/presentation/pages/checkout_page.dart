@@ -3,6 +3,9 @@ import '../../../../core/constants/app_constants.dart';
 import '../../../../core/widgets/app_widgets.dart';
 import '../../../cart/presentation/viewmodels/cart_viewmodel.dart';
 import '../../../orders/presentation/viewmodels/order_viewmodel.dart';
+import '../../../addresses/presentation/viewmodels/address_viewmodel.dart';
+import '../../../addresses/presentation/pages/address_form_page.dart';
+import '../../../../data/models/models.dart';
 import '../pages/order_success_page.dart';
 
 class CheckoutPage extends StatefulWidget {
@@ -15,23 +18,45 @@ class CheckoutPage extends StatefulWidget {
 class _CheckoutPageState extends State<CheckoutPage> {
   final CartViewModel _cartViewModel = CartViewModel();
   final OrderViewModel _orderViewModel = OrderViewModel();
+  final AddressViewModel _addressViewModel = AddressViewModel();
   
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
   final _addressController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _isPlacingOrder = false;
+  AddressModel? _selectedAddress;
+  bool _useSavedAddress = false;
   
   @override
   void initState() {
     super.initState();
     _cartViewModel.loadCart();
+    _loadAddresses();
+  }
+  
+  Future<void> _loadAddresses() async {
+    await _addressViewModel.loadAddresses();
+    if (_addressViewModel.defaultAddress != null) {
+      setState(() {
+        _selectedAddress = _addressViewModel.defaultAddress;
+        _useSavedAddress = true;
+        _populateFormFromAddress(_selectedAddress!);
+      });
+    }
+  }
+  
+  void _populateFormFromAddress(AddressModel address) {
+    _nameController.text = address.recipientName;
+    _phoneController.text = address.phone;
+    _addressController.text = address.address;
   }
   
   @override
   void dispose() {
     _cartViewModel.dispose();
     _orderViewModel.dispose();
+    _addressViewModel.dispose();
     _nameController.dispose();
     _phoneController.dispose();
     _addressController.dispose();
@@ -232,6 +257,50 @@ class _CheckoutPageState extends State<CheckoutPage> {
             ),
           ),
           const SizedBox(height: AppSpacing.md),
+          
+          // Saved address section
+          ListenableBuilder(
+            listenable: _addressViewModel,
+            builder: (context, child) {
+              if (_addressViewModel.hasAddresses) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Checkbox(
+                          value: _useSavedAddress,
+                          onChanged: (value) {
+                            setState(() {
+                              _useSavedAddress = value ?? false;
+                              if (_useSavedAddress && _selectedAddress != null) {
+                                _populateFormFromAddress(_selectedAddress!);
+                              }
+                            });
+                          },
+                          activeColor: AppColors.primary,
+                        ),
+                        const Text(
+                          'Use saved address',
+                          style: TextStyle(
+                            color: AppColors.darkNavy,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (_useSavedAddress) ...[
+                      const SizedBox(height: AppSpacing.md),
+                      _buildAddressSelector(),
+                    ],
+                    const SizedBox(height: AppSpacing.md),
+                  ],
+                );
+              }
+              return const SizedBox.shrink();
+            },
+          ),
+          
+          // Manual address form
           TextFormField(
             controller: _nameController,
             decoration: const InputDecoration(
@@ -290,6 +359,112 @@ class _CheckoutPageState extends State<CheckoutPage> {
           ),
         ],
       ),
+    );
+  }
+  
+  Widget _buildAddressSelector() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (_addressViewModel.addresses.length > 1)
+          DropdownButtonFormField<AddressModel>(
+            value: _selectedAddress,
+            decoration: const InputDecoration(
+              labelText: 'Select Address',
+              border: OutlineInputBorder(),
+            ),
+            items: _addressViewModel.addresses.map((address) {
+              return DropdownMenuItem<AddressModel>(
+                value: address,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      address.label,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      address.address,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.gray,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+            onChanged: (address) {
+              setState(() {
+                _selectedAddress = address;
+                if (address != null) {
+                  _populateFormFromAddress(address);
+                }
+              });
+            },
+          ),
+        if (_addressViewModel.addresses.length == 1 && _selectedAddress != null)
+          Container(
+            padding: const EdgeInsets.all(AppSpacing.sm),
+            decoration: BoxDecoration(
+              color: AppColors.lightBlue.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(AppBorderRadius.sm),
+              border: Border.all(color: AppColors.primary),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.location_on, color: AppColors.primary),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _selectedAddress!.label,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.darkNavy,
+                        ),
+                      ),
+                      Text(
+                        _selectedAddress!.address,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.gray,
+                        ),
+                        maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        const SizedBox(height: AppSpacing.sm),
+        TextButton.icon(
+          onPressed: () async {
+            final result = await Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => const AddressFormPage(),
+              ),
+            );
+            if (result != null && result is AddressModel) {
+              await _addressViewModel.addAddress(result);
+              await _loadAddresses();
+            }
+          },
+          icon: const Icon(Icons.add, size: 16),
+          label: const Text('Add new address'),
+          style: TextButton.styleFrom(
+            foregroundColor: AppColors.primary,
+          ),
+        ),
+      ],
     );
   }
   
