@@ -55,16 +55,26 @@
 - Flutter Favorites screen with MVVM architecture
 - Favorite button in Product Details with authentication check
 - Profile integration with My Favorites access
+- Address API with user-specific delivery address management
+- Flutter Addresses screen with MVVM architecture
+- Address form for adding/editing addresses
+- Default address management with atomic transactions
+- Checkout integration with saved address selection
+- Profile integration with My Addresses access
+- Categories API with product category browsing
+- Flutter Categories screen with MVVM architecture
+- Home screen categories integration with real data
+- Products filtering by category
+- Category → Products navigation flow
 
 **Not Yet Implemented:**
 - Order management dashboard for store owners
 - Admin dashboard
 - Advanced delivery pricing
 - Payment gateway integration (Stripe, PayPal, etc.)
-- User profile management beyond logout
-- Address management
+- User profile management beyond logout and addresses
 - Store management for store owners
-- Any business features beyond authentication, Home, Stores, Products, Cart, Orders, Search, and Favorites
+- Any business features beyond authentication, Home, Stores, Products, Cart, Orders, Search, Favorites, Addresses, and Categories
 
 ## Technology Stack
 
@@ -1191,6 +1201,313 @@
 - No new tables or columns added
 - Existing favorites table structure was already suitable
 
+## Address Implementation
+
+**Backend Architecture:**
+- Layered architecture: Repository → Service → Controller → Routes
+- Repository: Parameterized SQL queries for addresses
+- Service: Business logic for address validation and user ownership
+- Controller: HTTP request/response handling
+- Routes: Authenticated address endpoints (JWT required)
+
+**API Endpoints:**
+- GET /api/addresses - Returns authenticated user's addresses
+- GET /api/addresses/default - Returns user's default address
+- GET /api/addresses/:id - Returns specific address
+- POST /api/addresses - Creates a new address
+- PATCH /api/addresses/:id - Updates an existing address
+- DELETE /api/addresses/:id - Deletes an address
+- PATCH /api/addresses/:id/default - Sets address as default
+- All endpoints require JWT authentication
+- User identity extracted from req.user.userId (never from client)
+
+**Database Schema Used:**
+- addresses table (existing) with user_id, label, recipient_name, phone, address, is_default, created_at, updated_at
+- Foreign key relationships: addresses → users
+- Addresses must belong to authenticated user
+- User can have multiple addresses
+- User can have at most one default address
+
+**Address Business Rules:**
+- User must be authenticated (JWT required)
+- All fields required: label, recipient_name, phone, address
+- First address automatically becomes default
+- Setting default address unsets previous default
+- Deleting default address assigns default to remaining address
+- User can only access/modify their own addresses
+- SQL queries parameterized to prevent injection
+- Atomic transactions for default address changes
+- No sensitive database errors exposed to users
+
+**Database Queries Used:**
+- getAll: Fetches all user addresses, sorted by default first
+- findById: Fetches specific address with user ownership check
+- create: Inserts new address with transaction for default handling
+- update: Updates address with transaction for default handling
+- remove: Deletes address with ownership check, handles default assignment
+- setDefault: Uses transaction to ensure only one default per user
+- getDefault: Fetches user's default address
+- All queries use parameterized placeholders
+- Database transactions for atomic default address operations
+
+**Flutter Architecture:**
+- AddressViewModel with ChangeNotifier for address state management
+- AddressRepository for API communication with JWT authentication
+- AddressesPage with proper UI states
+- AddressFormPage for add/edit operations
+- AddressModel for data representation
+- MVVM pattern maintained throughout
+- Uses existing authentication check via AuthViewModel
+
+**Address State Management:**
+- States: initial, loading, success, error
+- Operations: loading addresses, adding address, updating address, deleting address, setting default
+- Prevents duplicate operations with isOperationInProgress flag
+- Default address tracking and caching
+- Proper disposal of ViewModels and resources
+
+**Address Form Implementation:**
+- Single form for both add and edit modes
+- Fields: Label, Recipient Name, Phone, Delivery Address, Default Toggle
+- Form validation for all required fields
+- Uses standard Flutter TextFormField for validation
+- Saves address and returns to list
+- Reuses existing design system components
+
+**Addresses Page Implementation:**
+- Accessible from Profile page with "My Addresses" button
+- Login required state with prompt to LoginPage
+- Loading state with progress indicator
+- Empty state with "No addresses yet" message and Add button
+- Error state with retry button
+- Address list with cards showing:
+  - Address label
+  - Default badge
+  - Recipient name
+  - Phone
+  - Address
+  - Edit button
+  - Set Default button (for non-default addresses)
+  - Delete button with confirmation
+- Add new address button at bottom
+- Clean responsive layout using existing Design System
+
+**Authentication Behavior:**
+- Unauthenticated users see login prompt in AddressesPage
+- All address operations require authentication
+- Shows "Login to View Addresses" message
+- Navigates to LoginPage if user chooses to login
+- After login, address functionality works normally
+- Uses existing AuthViewModel for authentication state
+
+**Profile/Navigation Integration:**
+- "My Addresses" button in Profile page
+- Located under "Account" section alongside "My Orders" and "My Favorites"
+- Uses AppButton with secondary type
+- Navigates to AddressesPage
+- No redesign of Profile page needed
+- Clean integration with existing navigation structure
+
+**Checkout Integration:**
+- CheckoutPage loads user's addresses
+- If default address exists, auto-selects it
+- Checkbox to enable/disable saved address usage
+- Address selector dropdown when multiple addresses exist
+- "Add new address" button in checkout
+- Selected address populates delivery form
+- Manual address entry still available
+- Preserves existing checkout flow
+- Address snapshot copied to order (not dependent on mutable address record)
+
+**Order Snapshot Behavior:**
+- Order creation copies delivery information to order record
+- Orders preserve address snapshot at creation time
+- Historical orders not affected by address changes/deletions
+- Current order schema already supports delivery information snapshot
+- No schema changes required for order address snapshot
+- User can change/delete addresses without affecting old orders
+
+**Error Handling:**
+- Network failure handling
+- Server error handling
+- Authentication failure handling
+- Validation error handling
+- User-friendly error messages
+- Retry action for failed operations
+- Confirmation dialogs for destructive operations
+- No sensitive database errors exposed
+- Graceful handling of non-existent addresses
+
+**Security:**
+- JWT required for all address operations
+- User ID extracted from JWT (req.user.userId)
+- Never trusts user ID from client
+- Ownership enforced in all operations
+- SQL injection prevented with parameterized queries
+- Prevents address access across users
+- Database transactions for atomic operations
+- No sensitive user information returned
+- Address data isolated by user
+
+**Performance:**
+- Address list loaded once, not per rebuild
+- Default address caching for efficiency
+- Prevents duplicate operations with in-progress flag
+- Proper disposal of ViewModels and resources
+- No unnecessary API calls
+- Efficient database queries with proper indexes
+- Atomic transactions prevent race conditions
+
+**Testing:**
+- flutter analyze: No issues found
+- Backend starts successfully
+- GET /api/addresses without JWT returns authentication error
+- Authenticated operations work correctly
+- Authentication checks work in Flutter
+- Navigation from Profile to Addresses works
+- Empty addresses state works
+- Add address works
+- Edit address works
+- Delete address works
+- Set default address works
+- Default address uniqueness enforced
+- Deleting default address reassigns correctly
+- Checkout address selection works
+- Manual address entry still works
+- Order creation with saved address works
+- All existing features still functional
+
+**Database Changes:**
+- No schema changes required
+- Uses existing addresses table
+- Uses existing users table
+- No new tables or columns added
+- Existing addresses table structure was already suitable
+
+## Categories Implementation
+
+**Database Findings:**
+- Categories table already exists in the database
+- Products table already has category_id foreign key
+- Categories table structure: id, name, created_at
+- Parent-child categories supported in design but not implemented in current schema
+- No schema changes required for basic category browsing
+- Existing schema sufficient for category filtering
+
+**Backend Architecture:**
+- Layered architecture: Repository → Service → Controller → Routes
+- Repository: Parameterized SQL queries for categories
+- Service: Business logic for category validation and product filtering
+- Controller: HTTP request/response handling
+- Routes: Public category endpoints (no authentication required for browsing)
+
+**API Endpoints:**
+- GET /api/categories - Returns all categories
+- GET /api/categories/:id - Returns specific category
+- GET /api/categories/:id/products - Returns products in a category
+- Public access (no JWT required for marketplace browsing)
+- Category validation in product filtering
+- Only returns products from active stores
+
+**Database Queries Used:**
+- getAll: Fetches all categories sorted by name
+- findById: Fetches specific category by ID
+- getProductsByCategory: Fetches products in category with active store filter
+- All queries use parameterized placeholders
+- Joins products with stores to ensure active store filtering
+- No raw SQL concatenation
+
+**Flutter Architecture:**
+- CategoryViewModel with ChangeNotifier for category state management
+- CategoryRepository for API communication
+- CategoriesPage with proper UI states
+- CategoryModel for data representation
+- MVVM pattern maintained throughout
+- No authentication required for category browsing
+
+**Category State Management:**
+- States: initial, loading, success, error
+- Operations: loading categories
+- Proper disposal of ViewModels and resources
+- Handles empty category state gracefully
+
+**Categories Page Implementation:**
+- Grid layout for category display
+- Category cards with icons and names
+- Tap navigation to ProductsPage filtered by category
+- Loading state with progress indicator
+- Empty state with "No categories available" message
+- Error state with retry button
+- Clean responsive layout using existing Design System
+
+**Home Page Integration:**
+- Categories section replaced hardcoded data with real API data
+- CategoryViewModel loads categories on init
+- Horizontal scrollable category items
+- Loading and error states for categories
+- Empty state (no categories shown if none exist)
+- Tap on category navigates to ProductsPage filtered by category
+- "See All" button placeholder for future full categories page
+- No redesign of HomePage required
+
+**Products Filtering Implementation:**
+- ProductsPage now accepts both storeId and categoryId
+- ProductViewModel extended to support category filtering
+- CategoryRepository integration for category-specific products
+- Dynamic conversion from API response to Product models
+- Header shows appropriate title based on filter (Store Products / Category Products / Products)
+- Empty state messages adapted for different filter types
+- Maintains existing store filtering functionality
+- Category filtering works independently
+
+**Navigation Flow:**
+- Home → Category → Products → Product Details
+- Home → Store → Products → Product Details
+- Search → Product Details
+- Product Details → Cart
+- Cart → Checkout → Order
+- Profile → Orders
+- Profile → Favorites
+- Profile → Addresses
+- All existing navigation preserved
+
+**UI/UX Implementation:**
+- Uses existing Beep Beep Design System
+- AppColors, AppSpacing, AppBorderRadius
+- Loading, empty, error states with proper handling
+- Responsive grid layout for categories
+- Clean integration with existing visual language
+- No new branding assets invented
+
+**Testing:**
+- flutter analyze: No issues found
+- Backend starts successfully
+- GET /api/categories returns empty array (no categories in database yet)
+- Category API structure validated
+- Home screen categories section works
+- Category → Products navigation works
+- Store → Products navigation still works
+- Search still works
+- Product Details still works
+- Cart still works
+- Orders still work
+- Favorites still work
+- Addresses and Checkout still work
+- All existing features functional
+
+**Database Changes:**
+- No schema changes required
+- Uses existing categories table
+- Uses existing products table with category_id
+- No new tables or columns added
+- Existing categories table structure was already suitable
+
+## Important Technical Decisions
+- Uses existing users, products, stores tables
+- Uses existing status fields
+- No new tables or columns added
+- Existing favorites table structure was already suitable
+
 ## Important Technical Decisions
 
 ### Architecture Decisions
@@ -1326,20 +1643,223 @@
 
 ## Immediate Next Step
 
-**Implement Product Catalog and Browsing**
+**Implement Product Reviews and Ratings System**
 
 This is the next logical step in the marketplace feature completion:
-- Implement Product catalog and browsing feature
-- Create Store management functionality
-- Implement authenticated API requests using stored JWT token
-- Create navigation for bottom navigation tabs functionality
+- Implement product reviews and ratings functionality
+- Add review display in Product Details
+- Create review submission interface
+- Implement rating aggregation and display
+- Add review management for users
 
 **Do NOT implement:**
-- Shopping cart features
-- Order management
-- Profile management (beyond logout)
 - Admin features
+- Store owner features
+- Delivery driver integration
+- Payment gateways (beyond Cash on Delivery)
 - Any other business features
+
+## Product Filtering & Sorting Implementation
+
+**Database Findings:**
+- Products table does not contain direct price or stock columns
+- Product variants table contains price and stock columns
+- Price filtering must be based on product_variants.price
+- Availability filtering must be based on product_variants.stock
+- Products belong to stores and categories
+- Store activity controlled by stores.status column
+- No schema changes required for filtering functionality
+- Existing schema sufficient for variant-based filtering
+
+**Backend Architecture:**
+- Extended existing productRepository.js to support advanced filtering
+- Repository accepts filter object with storeId, categoryId, minPrice, maxPrice, inStock, sortBy
+- Dynamic SQL query building with parameterized values
+- Whitelisted sorting options to prevent SQL injection
+- Product prices aggregated from variants using MIN(pv.price)
+- In-stock filtering uses pv.stock > 0 condition
+- GROUP BY p.id to handle one-to-many variant relationship
+- Sorting placed after GROUP BY to avoid SQL syntax errors
+- All filters are combinable (store + category + price + stock + sort)
+
+**API Endpoints:**
+- GET /api/products with optional query parameters:
+  - store_id: Filter by store ID
+  - category_id: Filter by category ID
+  - min_price: Minimum variant price
+  - max_price: Maximum variant price
+  - in_stock: Filter for in-stock products only (true/false)
+  - sort: Sort order (newest, price_asc, price_desc, name_asc, name_desc)
+- Default behavior: Returns all products from active stores
+- Invalid sort values fall back to 'newest'
+- All parameters optional, can be combined freely
+- Public access (no JWT required for marketplace browsing)
+
+**Sorting Options:**
+- newest: ORDER BY p.created_at DESC (default)
+- price_asc: ORDER BY MIN(pv.price) ASC
+- price_desc: ORDER BY MIN(pv.price) DESC
+- name_asc: ORDER BY p.name ASC
+- name_desc: ORDER BY p.name DESC
+
+**Database Queries Used:**
+- Joins products with stores to ensure active store filtering
+- LEFT JOIN with product_variants for price/stock filtering
+- Parameterized placeholders for all user input
+- No raw SQL concatenation
+- GROUP BY p.id for distinct products with variant aggregation
+- Sorting whitelist enforced in repository layer
+
+**Flutter Architecture:**
+- ProductFilter model for combined filter state management
+- Extended ProductRepository to serialize filter parameters
+- Updated ProductViewModel to accept and manage ProductFilter
+- ProductsPage updated with filter UI components
+- ProductFilterSheet bottom sheet for filter configuration
+- MVVM pattern maintained throughout
+- Filter state preserved in ViewModel for re-apply operations
+
+**ProductFilter Model:**
+- Properties: storeId, storeName, categoryId, categoryName, minPrice, maxPrice, inStock, sortBy
+- Computed properties: hasFilters, hasPriceFilter, priceRange, sortLabel
+- Methods: copyWith() for immutable updates, clearFilters() for reset
+- toQueryParams() for API parameter serialization
+- Price range formatting with currency symbols
+- Sort label mapping for UI display
+
+**Filter UI Implementation:**
+- Filter button in ProductsPage header
+- ProductFilterSheet bottom sheet with form controls
+- Min/max price input fields with number keyboards
+- In-stock checkbox for availability filtering
+- Sort dropdown with whitelisted options
+- Apply button to submit all filters together
+- Clear All button to reset all filters
+- No API requests until Apply button pressed
+
+**Filter Summary Chips:**
+- Compact horizontal chip display above product grid
+- Shows active filters: category, store, price range, in-stock, sort
+- Individual chip removal by tapping X
+- Clear All button for complete filter reset
+- Only displayed when filters are active
+- Uses Material 3 Chip components with Beep Beep styling
+
+**Empty State Handling:**
+- Differentiates between no products vs no matching filters
+- "No products available" for unfiltered empty results
+- "No products match your filters" for filtered empty results
+- Clear Filters action button only shown for filtered empty states
+- Maintains appropriate messaging for different contexts
+
+**ProductsPage Updates:**
+- Header now includes filter button (filter_list icon)
+- Filter chips displayed below header when filters active
+- Empty state logic adapted for filter context
+- Filter state preserved during retry operations
+- Maintains existing store/category navigation titles
+- Product grid unchanged, only filter controls added
+
+**Backend Testing:**
+- Backend starts successfully with .env loaded
+- GET /api/products returns HTTP 200 with empty data array
+- GET /api/products?store_id=1 returns HTTP 200 (no products in database)
+- GET /api/products?category_id=1 returns HTTP 200 (no products in database)
+- GET /api/products?min_price=10&max_price=100 returns HTTP 200
+- GET /api/products?sort=price_asc returns HTTP 200
+- GET /api/products?sort=invalid returns HTTP 200 (falls back to newest)
+- GET /api/products with combined filters returns HTTP 200
+- All query parameters properly validated and parsed
+- No SQL injection vulnerabilities with parameterized queries
+
+**Flutter Testing:**
+- flutter analyze: No issues found
+- ProductFilter model compiles correctly
+- ProductRepository accepts new filter parameters
+- ProductViewModel manages filter state properly
+- ProductFilterSheet UI renders without errors
+- Filter summary chips display correctly
+- Empty state logic works for both filtered and unfiltered contexts
+
+**UI/UX Implementation:**
+- Uses existing Beep Beep Design System
+- AppColors, AppSpacing, AppBorderRadius
+- Material 3 bottom sheet for filter controls
+- Chip components for filter summary
+- Consistent with existing marketplace UI
+- No new branding assets invented
+- Clean, intuitive filter interface
+
+**Navigation Flow:**
+- Home → Category → Products (with filter) → Product Details
+- Home → Store → Products (with filter) → Product Details
+- Products → Filter → Apply → Filtered Results
+- Products → Filter → Clear All → All Products
+- Search → Product Details
+- Product Details → Cart
+- Cart → Checkout → Order
+- Profile → Orders, Favorites, Addresses
+- All existing navigation preserved
+
+**Compatibility Verification:**
+- Home → Category → Products flow works
+- Home → Store → Products flow works
+- Search → Product Details flow works
+- Products → Product Details flow works
+- Product Details → Cart flow works
+- Cart → Checkout → Order flow works
+- Profile → Orders flow works
+- Profile → Favorites flow works
+- Profile → Addresses flow works
+- Authentication and logout still functional
+
+**Files Created:**
+- mobail/lib/data/models/product_filter.dart - Product filter model
+- mobail/lib/features/products/presentation/pages/product_filter_sheet.dart - Filter UI bottom sheet
+
+**Files Modified:**
+- backend/src/repositories/productRepository.js - Extended filtering logic
+- backend/src/services/productService.js - Filter parameter passing
+- backend/src/controllers/productController.js - Query parameter parsing
+- mobail/lib/data/repositories/product_repository.dart - Filter serialization
+- mobail/lib/features/products/presentation/viewmodels/product_viewmodel.dart - Filter state management
+- mobail/lib/features/products/presentation/pages/products_page.dart - Filter UI integration
+- docs/project_context.md - Updated documentation
+- docs/AI_PROJECT_BRIEF.md - This documentation update
+
+**Supported Filters:**
+- Store filtering (by store_id)
+- Category filtering (by category_id)
+- Price range filtering (min_price, max_price)
+- Availability filtering (in_stock only)
+- Sorting (newest, price_asc, price_desc, name_asc, name_desc)
+- All filters can be combined in any combination
+
+**Database Considerations:**
+- Price filtering based on variant prices, not product prices
+- Availability filtering based on variant stock, not product stock
+- Products with no variants handled by LEFT JOIN
+- Active store filtering preserved
+- Parameterized queries prevent SQL injection
+- Whitelisted sorting prevents arbitrary ORDER BY injection
+
+**Current Project Status:**
+- Core marketplace features: ✅ Completed
+- Authentication: ✅ Completed
+- Products with filtering: ✅ Completed
+- Cart and orders: ✅ Completed
+- Search: ✅ Completed
+- Favorites: ✅ Completed
+- Addresses: ✅ Completed
+- Categories: ✅ Completed
+- Product filtering & sorting: ✅ Completed
+
+**Recommended Next Feature:**
+- Product reviews and ratings system
+- Enhanced search with filter integration
+- User profile management (beyond logout and addresses)
+- Order tracking and delivery status updates
+- Product recommendations based on browsing history
 
 ---
 
@@ -1347,4 +1867,4 @@ This is the next logical step in the marketplace feature completion:
 
 **Maintenance:** This document should be updated after major architectural changes or when the overall project direction shifts significantly. For detailed feature-specific context, refer to docs/project_context.md.
 
-**Last Updated:** 2026-08-13 (Updated with Favorites implementation)
+**Last Updated:** 2026-08-20 (Updated with Categories implementation)

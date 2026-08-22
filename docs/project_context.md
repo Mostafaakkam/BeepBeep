@@ -56,15 +56,28 @@ Beep Beep is a mobile marketplace application designed for local commerce, start
 - Flutter Favorites screen with MVVM architecture
 - Favorite button in Product Details with authentication check
 - Profile integration with My Favorites access
+- Address API with user-specific delivery address management
+- Flutter Addresses screen with MVVM architecture
+- Address form for adding/editing addresses
+- Default address management
+- Checkout integration with saved address selection
+- Profile integration with My Addresses access
+- Categories API with product category browsing
+- Flutter Categories screen with MVVM architecture
+- Home screen categories integration with real data
+- Products filtering by category
+- Category → Products navigation flow
+- Product Filtering & Sorting API with advanced filtering options
+- Product filter UI with bottom sheet and filter controls
+- Filter summary chips and clear functionality
+- Combined filter support (store, category, price, availability, sorting)
 
 ### Planned (Not Yet Implemented)
 - Order management dashboard for store owners
 - Admin dashboard
 - Advanced delivery pricing
 - Payment gateway integration (Stripe, PayPal, etc.)
-- User profile management beyond logout
-- Address management
-- Category browsing
+- User profile management beyond logout and addresses
 - Store owner accounts
 - Delivery driver integration
 - Multi-city expansion
@@ -359,6 +372,39 @@ Complete database schema documentation is available in: `docs/database.md`
   ```
 - Status Codes: 200 (success), 401 (authentication failed/invalid token/expired token), 500 (server error)
 
+**GET /api/products**
+- Purpose: Retrieve products with advanced filtering and sorting
+- Authentication: None required (public endpoint)
+- Query Parameters:
+  - `store_id` (optional): Filter by store ID
+  - `category_id` (optional): Filter by category ID
+  - `min_price` (optional): Minimum variant price
+  - `max_price` (optional): Maximum variant price
+  - `in_stock` (optional): Filter for in-stock products only
+  - `sort` (optional): Sort order (newest, price_asc, price_desc, name_asc, name_desc)
+- Response Structure (200):
+  ```json
+  {
+    "success": true,
+    "message": "Products retrieved successfully",
+    "data": [
+      {
+        "id": 1,
+        "name": "Product Name",
+        "description": "Product description",
+        "store_id": 1,
+        "category_id": 1,
+        "store_name": "Store Name",
+        "store_logo": "logo_path",
+        "created_at": "2026-08-10T10:00:00.000Z",
+        "updated_at": "2026-08-10T10:00:00.000Z"
+      }
+    ]
+  }
+  ```
+- Status Codes: 200 (success), 500 (server error)
+- Implementation Notes: All filters are combinable, variant-based price/stock filtering, parameterized SQL, whitelisted sorting
+
 ## 7. Authentication & Security
 
 ### Implemented
@@ -591,7 +637,9 @@ backend/
 │   │   ├── cartController.js    # Cart request handling
 │   │   ├── orderController.js   # Order request handling
 │   │   ├── searchController.js  # Search request handling
-│   │   └── favoriteController.js # Favorite request handling
+│   │   ├── favoriteController.js # Favorite request handling
+│   │   ├── addressController.js # Address request handling
+│   │   └── categoryController.js # Category request handling
 │   ├── middlewares/
 │   │   └── authMiddleware.js    # JWT authentication middleware
 │   ├── repositories/
@@ -601,7 +649,9 @@ backend/
 │   │   ├── cartRepository.js    # Cart data access layer
 │   │   ├── orderRepository.js   # Order data access layer
 │   │   ├── searchRepository.js  # Search data access layer
-│   │   └── favoriteRepository.js # Favorite data access layer
+│   │   ├── favoriteRepository.js # Favorite data access layer
+│   │   ├── addressRepository.js # Address data access layer
+│   │   └── categoryRepository.js # Category data access layer
 │   ├── routes/
 │   │   ├── authRoutes.js        # Authentication routes
 │   │   ├── healthRoutes.js      # Health check routes
@@ -610,7 +660,9 @@ backend/
 │   │   ├── cartRoutes.js        # Cart routes
 │   │   ├── orderRoutes.js       # Order routes
 │   │   ├── searchRoutes.js      # Search routes
-│   │   └── favoriteRoutes.js    # Favorite routes
+│   │   ├── favoriteRoutes.js    # Favorite routes
+│   │   ├── addressRoutes.js     # Address routes
+│   │   └── categoryRoutes.js    # Category routes
 │   ├── services/
 │   │   ├── authService.js       # Authentication business logic
 │   │   ├── storeService.js      # Store business logic
@@ -618,7 +670,9 @@ backend/
 │   │   ├── cartService.js       # Cart business logic
 │   │   ├── orderService.js      # Order business logic
 │   │   ├── searchService.js     # Search business logic
-│   │   └── favoriteService.js   # Favorite business logic
+│   │   ├── favoriteService.js   # Favorite business logic
+│   │   ├── addressService.js    # Address business logic
+│   │   └── categoryService.js   # Category business logic
 │   │   └── orderService.js      # Order business logic
 │   ├── utils/                   # Utility functions (empty, ready for use)
 │   ├── validators/              # Input validators (empty, ready for use)
@@ -667,6 +721,9 @@ mobail/
 │   │   │   ├── cart_product_model.dart    # Cart product model
 │   │   │   ├── order_model.dart           # Order model
 │   │   │   ├── order_item_model.dart      # Order item model
+│   │   │   ├── address_model.dart         # Address model
+│   │   │   ├── category_model.dart        # Category model
+│   │   │   ├── product_filter.dart        # Product filter model
 │   │   │   └── models.dart               # Barrel export
 │   │   ├── repositories/
 │   │   │   ├── auth_repository.dart      # Authentication repository
@@ -674,7 +731,9 @@ mobail/
 │   │   │   ├── product_repository.dart    # Product repository
 │   │   │   ├── cart_repository.dart       # Cart repository
 │   │   │   ├── order_repository.dart      # Order repository
-│   │   │   └── favorite_repository.dart   # Favorite repository
+│   │   │   ├── favorite_repository.dart   # Favorite repository
+│   │   │   ├── address_repository.dart    # Address repository
+│   │   │   └── category_repository.dart   # Category repository
 │   │   └── services/
 │   │       ├── api_service.dart           # HTTP API service
 │   │       └── token_storage.dart         # JWT token storage
@@ -706,7 +765,8 @@ mobail/
 │       └── presentation/
 │           ├── pages/
 │           │   ├── products_page.dart     # Products screen
-│           │   └── product_details_page.dart # Product details screen
+│           │   ├── product_details_page.dart # Product details screen
+│           │   └── product_filter_sheet.dart # Product filter bottom sheet
 │           └── viewmodels/
 │               ├── product_viewmodel.dart   # Product ViewModel
 │               └── product_detail_viewmodel.dart # Product detail ViewModel
@@ -737,6 +797,19 @@ mobail/
 │           │   └── favorites_page.dart        # Favorites screen
 │           └── viewmodels/
 │               └── favorite_viewmodel.dart     # Favorite ViewModel
+│   └── addresses/
+│       └── presentation/
+│           ├── pages/
+│           │   ├── addresses_page.dart         # Addresses screen
+│           │   └── address_form_page.dart      # Address form screen
+│           └── viewmodels/
+│               └── address_viewmodel.dart      # Address ViewModel
+│   └── categories/
+│       └── presentation/
+│           ├── pages/
+│           │   └── categories_page.dart        # Categories screen
+│           └── viewmodels/
+│               └── category_viewmodel.dart     # Category ViewModel
 │   ├── config/
 │   │   └── api_config.dart               # API configuration
 │   ├── design_system_demo.dart           # Design system demo (for reference)
@@ -787,35 +860,73 @@ docs/
 - **Stores Feature Implemented**: Flutter Stores screen with real data integration
 - **Home Stores Integration**: Featured Stores section displays real store data
 - **Products API Implemented**: Backend endpoints for product catalog with filtering
-- **Products Feature Implemented**: Flutter Products screen with MVVM architecture
+- **Flutter Products Feature Implemented**: Flutter Products screen with MVVM architecture
 - **Product Details Implemented**: Product details screen with variants and images
 - **Store → Products Flow**: Navigation from stores to their products
 - **Cart API Implemented**: Backend endpoints for shopping cart with authentication
 - **Cart Feature Implemented**: Flutter Cart screen with MVVM architecture
 - **Add to Cart Implemented**: Functional Add to Cart in Product Details
 - **Cart Badge Implemented**: Item count badge in navigation
+- **Order API Implemented**: Backend endpoints for order processing with transaction support
+- **Order Feature Implemented**: Flutter Orders screen with MVVM architecture
+- **Checkout Implemented**: Checkout screen with delivery information and Cash on Delivery
+- **Order Success Screen**: Order confirmation screen with order details
+- **Order Details Implemented**: Order details screen with full order information
+- **Order Cancellation Implemented**: Pending order cancellation functionality
+- **Profile Orders Integration**: My Orders access from Profile screen
+- **Search API Implemented**: Backend endpoints for unified search across products and stores
+- **Search Feature Implemented**: Flutter Search screen with MVVM architecture
+- **Home Search Integration**: Search field integration in Home screen
+- **Debounced Search**: Debounced search behavior for improved performance
+- **Favorites API Implemented**: Backend endpoints for user-specific product bookmarking
+- **Favorites Feature Implemented**: Flutter Favorites screen with MVVM architecture
+- **Favorite Button Implemented**: Favorite button in Product Details with authentication check
+- **Profile Favorites Integration**: My Favorites access from Profile screen
+- **Address API Implemented**: Backend endpoints for user address management
+- **Address Feature Implemented**: Flutter Addresses screen with MVVM architecture
+- **Address Form Implemented**: Address form for adding/editing addresses
+- **Default Address Management**: Default address selection and management
+- **Checkout Address Integration**: Saved address selection in Checkout
+- **Profile Addresses Integration**: My Addresses access from Profile screen
+- **Categories API Implemented**: Backend endpoints for product category browsing
+- **Categories Feature Implemented**: Flutter Categories screen with MVVM architecture
+- **Home Categories Integration**: Real category data integration in Home screen
+- **Category Products Filtering**: Products filtering by category
+- **Category → Products Flow**: Navigation from categories to filtered products
+- **Product Filtering API Implemented**: Advanced product filtering with multiple criteria
+- **Product Filtering UI Implemented**: Filter bottom sheet with price, stock, and sort controls
+- **Filter Summary Chips**: Visual filter summary with individual removal capability
+- **Combined Filters**: Support for multiple simultaneous filters (store, category, price, stock, sort)
+- **Empty Filtered States**: Clear empty state with Clear Filters action for filtered results
 
 ## 12. Current Status
 
 ### Backend
 - **Infrastructure**: ✅ Completed
 - **Authentication**: ✅ Completed (register, login, JWT middleware)
-- **Product API**: ❌ Not started
-- **Store API**: ❌ Not started
-- **Cart API**: ❌ Not started
-- **Order API**: ❌ Not started
+- **Product API**: ✅ Completed (with advanced filtering and sorting)
+- **Store API**: ✅ Completed
+- **Cart API**: ✅ Completed
+- **Order API**: ✅ Completed
+- **Search API**: ✅ Completed
+- **Favorites API**: ✅ Completed
+- **Address API**: ✅ Completed
+- **Category API**: ✅ Completed
 - **Admin Features**: ❌ Not started
 
 ### Flutter
 - **Design System**: ✅ Completed
 - **Authentication UI**: ✅ Completed (Register and Login screens)
-- **Home Screen**: ❌ Not started
-- **Categories Screen**: ❌ Not started
-- **Product Screens**: ❌ Not started
-- **Cart Screen**: ❌ Not started
-- **Order Screens**: ❌ Not started
-- **Profile Screen**: ❌ Not started
-- **MVVM Architecture**: ✅ Completed (implemented for authentication)
+- **Home Screen**: ✅ Completed
+- **Categories Screen**: ✅ Completed
+- **Product Screens**: ✅ Completed (with filtering and sorting)
+- **Cart Screen**: ✅ Completed
+- **Order Screens**: ✅ Completed
+- **Profile Screen**: ✅ Completed
+- **Search Screen**: ✅ Completed
+- **Favorites Screen**: ✅ Completed
+- **Addresses Screen**: ✅ Completed
+- **MVVM Architecture**: ✅ Completed (implemented for all features)
 - **API Service Layer**: ✅ Completed
 - **State Management**: ✅ Completed (ChangeNotifier pattern)
 - **JWT Token Storage**: ✅ Completed (SharedPreferences)
@@ -836,10 +947,11 @@ docs/
 ## 13. Pending Work
 
 ### Immediate Next Steps
-- Implement Order processing and management
-- Create Checkout flow
-- Add payment processing integration
-- Implement authenticated API requests using stored JWT token for order operations
+- Implement advanced search with filters
+- Add product reviews and ratings
+- Implement user profile management (beyond logout and addresses)
+- Add notification system for order updates
+- Implement product recommendations
 
 ### Later Features
 - Product catalog and browsing
@@ -957,4 +1069,4 @@ docs/
 
 **Document Maintenance**: This file must be updated after every significant project change to maintain its accuracy as the primary context document for future development sessions.
 
-**Last Updated**: 2026-08-10 (Initial creation based on current project state)
+**Last Updated**: 2026-08-22 (Product Filtering & Sorting implementation completed)
