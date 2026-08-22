@@ -1,8 +1,8 @@
 const productRepository = require('../repositories/productRepository');
 
-const getAllProducts = async (storeId = null) => {
+const getAllProducts = async (filters = {}) => {
   try {
-    const products = await productRepository.findAll(storeId);
+    const products = await productRepository.findAll(filters);
     return products;
   } catch (error) {
     console.error('Error fetching products:', error);

@@ -2,10 +2,25 @@ const productService = require('../services/productService');
 
 const getAllProducts = async (req, res) => {
   try {
-    const { store_id } = req.query;
-    const storeId = store_id ? parseInt(store_id) : null;
+    const {
+      store_id,
+      category_id,
+      min_price,
+      max_price,
+      in_stock,
+      sort
+    } = req.query;
     
-    const products = await productService.getAllProducts(storeId);
+    const filters = {
+      storeId: store_id ? parseInt(store_id) : null,
+      categoryId: category_id ? parseInt(category_id) : null,
+      minPrice: min_price ? parseFloat(min_price) : null,
+      maxPrice: max_price ? parseFloat(max_price) : null,
+      inStock: in_stock === 'true',
+      sortBy: sort || 'newest'
+    };
+    
+    const products = await productService.getAllProducts(filters);
     
     res.status(200).json({
       success: true,
