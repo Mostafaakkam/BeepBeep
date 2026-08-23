@@ -60,6 +60,20 @@ const createOrder = async (userId, orderData) => {
   }
 };
 
+// Added for Store Owner order visibility. `storeId` here is not
+// client-supplied -- it's the value the requireStoreOwnership middleware
+// already resolved and verified against req.user before this is ever
+// called (see storeController.getStoreOrders / routes/storeRoutes.js).
+const getOrdersForStore = async (storeId, status) => {
+  try {
+    const orders = await orderRepository.findByStoreId(storeId, status);
+    return orders;
+  } catch (error) {
+    console.error('Error fetching store orders:', error);
+    throw new Error('Failed to fetch store orders');
+  }
+};
+
 const cancelOrder = async (orderId, userId) => {
   try {
     await orderRepository.cancelOrder(orderId, userId);
@@ -82,6 +96,7 @@ const cancelOrder = async (orderId, userId) => {
 module.exports = {
   getOrders,
   getOrderById,
+  getOrdersForStore,
   createOrder,
   cancelOrder
 };

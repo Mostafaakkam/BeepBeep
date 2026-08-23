@@ -102,11 +102,37 @@ const findById = async (id) => {
     [id]
   );
   product.variants = variants;
-  
+
+  // Get rating summary (average rating + review count), computed on read
+  // from the reviews table rather than stored as denormalized columns.
+  const [ratingRows] = await pool.execute(
+    'SELECT COUNT(*) as review_count, AVG(rating) as average_rating FROM reviews WHERE product_id = ?',
+    [id]
+  );
+  product.review_count = ratingRows[0].review_count || 0;
+  product.average_rating = ratingRows[0].average_rating !== null
+    ? parseFloat(ratingRows[0].average_rating)
+    : 0;
+
   return product;
+};
+
+// Added for Store/Product Ownership Authorization. Unlike findById() above,
+// this intentionally does NOT filter on stores.status = 'active' — a store
+// owner must still be able to resolve ownership of products belonging to
+// their own inactive/pending store (e.g. to manage it), not just active
+// ones. Used by middlewares/authorizationMiddleware.js#requireProductOwnership.
+const findStoreIdById = async (productId) => {
+  const [rows] = await pool.execute(
+    'SELECT store_id FROM products WHERE id = ?',
+    [productId]
+  );
+  if (rows.length === 0) return undefined; // product does not exist
+  return rows[0].store_id;
 };
 
 module.exports = {
   findAll,
-  findById
+  findById,
+  findStoreIdById
 };

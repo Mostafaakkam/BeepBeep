@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/widgets/app_widgets.dart';
+import '../../../../l10n/generated/app_localizations.dart';
 import '../viewmodels/address_viewmodel.dart';
 import 'address_form_page.dart';
 import '../../../../data/models/models.dart';
@@ -9,7 +10,7 @@ import '../../../auth/presentation/pages/login_page.dart';
 
 class AddressesPage extends StatefulWidget {
   const AddressesPage({super.key});
-  
+
   @override
   State<AddressesPage> createState() => _AddressesPageState();
 }
@@ -17,27 +18,27 @@ class AddressesPage extends StatefulWidget {
 class _AddressesPageState extends State<AddressesPage> {
   final AddressViewModel _viewModel = AddressViewModel();
   final AuthViewModel _authViewModel = AuthViewModel();
-  
+
   @override
   void initState() {
     super.initState();
     _authViewModel.checkAuthStatus();
     _loadAddressesIfAuthenticated();
   }
-  
+
   Future<void> _loadAddressesIfAuthenticated() async {
     if (_authViewModel.isAuthenticated) {
       await _viewModel.loadAddresses();
     }
   }
-  
+
   @override
   void dispose() {
     _viewModel.dispose();
     _authViewModel.dispose();
     super.dispose();
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -53,8 +54,9 @@ class _AddressesPageState extends State<AddressesPage> {
       ),
     );
   }
-  
+
   Widget _buildHeader() {
+    final l10n = AppLocalizations.of(context);
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
@@ -70,13 +72,16 @@ class _AddressesPageState extends State<AddressesPage> {
       child: Row(
         children: [
           IconButton(
-            icon: const Icon(Icons.arrow_back),
+            icon: const Icon(
+              Icons.arrow_back,
+            ),
+            tooltip: l10n.goBack,
             onPressed: () => Navigator.of(context).pop(),
           ),
-          const Expanded(
+          Expanded(
             child: Text(
-              'My Addresses',
-              style: TextStyle(
+              l10n.myAddresses,
+              style: const TextStyle(
                 color: AppColors.darkNavy,
                 fontWeight: FontWeight.bold,
                 fontSize: 18,
@@ -87,7 +92,7 @@ class _AddressesPageState extends State<AddressesPage> {
       ),
     );
   }
-  
+
   Widget _buildContent() {
     return ListenableBuilder(
       listenable: _authViewModel,
@@ -95,30 +100,31 @@ class _AddressesPageState extends State<AddressesPage> {
         if (!_authViewModel.isAuthenticated) {
           return _buildLoginRequiredState();
         }
-        
+
         return ListenableBuilder(
           listenable: _viewModel,
           builder: (context, child) {
             if (_viewModel.isLoading) {
               return _buildLoadingState();
             }
-            
+
             if (_viewModel.isError) {
               return _buildErrorState();
             }
-            
+
             if (!_viewModel.hasAddresses) {
               return _buildEmptyState();
             }
-            
+
             return _buildAddressesList();
           },
         );
       },
     );
   }
-  
+
   Widget _buildLoginRequiredState() {
+    final l10n = AppLocalizations.of(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
@@ -132,22 +138,22 @@ class _AddressesPageState extends State<AddressesPage> {
             ),
             const SizedBox(height: AppSpacing.md),
             Text(
-              'Login to View Addresses',
+              l10n.loginToViewAddresses,
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                color: AppColors.darkNavy,
-              ),
+                    color: AppColors.darkNavy,
+                  ),
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
-              'You need to be logged in to view your addresses',
+              l10n.loginRequiredAddressesMessage,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppColors.gray,
-              ),
+                    color: AppColors.gray,
+                  ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: AppSpacing.lg),
             AppButton(
-              text: 'Login',
+              text: l10n.login,
               type: AppButtonType.primary,
               onPressed: () {
                 Navigator.of(context).push(
@@ -162,7 +168,7 @@ class _AddressesPageState extends State<AddressesPage> {
       ),
     );
   }
-  
+
   Widget _buildLoadingState() {
     return const Center(
       child: CircularProgressIndicator(
@@ -170,8 +176,9 @@ class _AddressesPageState extends State<AddressesPage> {
       ),
     );
   }
-  
+
   Widget _buildErrorState() {
+    final l10n = AppLocalizations.of(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
@@ -185,15 +192,15 @@ class _AddressesPageState extends State<AddressesPage> {
             ),
             const SizedBox(height: AppSpacing.md),
             Text(
-              _viewModel.errorMessage ?? 'Failed to load addresses',
+              _viewModel.errorMessage ?? l10n.failedToLoadAddresses,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppColors.gray,
-              ),
+                    color: AppColors.gray,
+                  ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: AppSpacing.lg),
             AppButton(
-              text: 'Retry',
+              text: l10n.retry,
               type: AppButtonType.primary,
               onPressed: _viewModel.retry,
             ),
@@ -202,8 +209,9 @@ class _AddressesPageState extends State<AddressesPage> {
       ),
     );
   }
-  
+
   Widget _buildEmptyState() {
+    final l10n = AppLocalizations.of(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
@@ -217,21 +225,21 @@ class _AddressesPageState extends State<AddressesPage> {
             ),
             const SizedBox(height: AppSpacing.md),
             Text(
-              'No addresses yet',
+              l10n.noAddresses,
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                color: AppColors.darkNavy,
-              ),
+                    color: AppColors.darkNavy,
+                  ),
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
-              'Add your first delivery address',
+              l10n.noAddressesSubtitle,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppColors.gray,
-              ),
+                    color: AppColors.gray,
+                  ),
             ),
             const SizedBox(height: AppSpacing.lg),
             AppButton(
-              text: 'Add Address',
+              text: l10n.addAddress,
               type: AppButtonType.primary,
               onPressed: () => _navigateToForm(),
             ),
@@ -240,7 +248,7 @@ class _AddressesPageState extends State<AddressesPage> {
       ),
     );
   }
-  
+
   Widget _buildAddressesList() {
     return Column(
       children: [
@@ -257,8 +265,9 @@ class _AddressesPageState extends State<AddressesPage> {
       ],
     );
   }
-  
+
   Widget _buildAddressCard(AddressModel address) {
+    final l10n = AppLocalizations.of(context);
     return AppCard(
       margin: const EdgeInsets.only(bottom: AppSpacing.md),
       child: Padding(
@@ -272,9 +281,9 @@ class _AddressesPageState extends State<AddressesPage> {
                   child: Text(
                     address.label,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppColors.darkNavy,
-                      fontWeight: FontWeight.bold,
-                    ),
+                          color: AppColors.darkNavy,
+                          fontWeight: FontWeight.bold,
+                        ),
                   ),
                 ),
                 if (address.isDefault)
@@ -287,9 +296,9 @@ class _AddressesPageState extends State<AddressesPage> {
                       color: AppColors.primary.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(AppBorderRadius.sm),
                     ),
-                    child: const Text(
-                      'Default',
-                      style: TextStyle(
+                    child: Text(
+                      l10n.defaultAddress,
+                      style: const TextStyle(
                         color: AppColors.primary,
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
@@ -302,22 +311,22 @@ class _AddressesPageState extends State<AddressesPage> {
             Text(
               address.recipientName,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppColors.darkNavy,
-              ),
+                    color: AppColors.darkNavy,
+                  ),
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
               address.phone,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppColors.gray,
-              ),
+                    color: AppColors.gray,
+                  ),
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
               address.address,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppColors.gray,
-              ),
+                    color: AppColors.gray,
+                  ),
             ),
             const SizedBox(height: AppSpacing.md),
             Row(
@@ -325,7 +334,7 @@ class _AddressesPageState extends State<AddressesPage> {
                 if (!address.isDefault)
                   Expanded(
                     child: AppButton(
-                      text: 'Set Default',
+                      text: l10n.setDefault,
                       type: AppButtonType.secondary,
                       onPressed: _viewModel.isOperationInProgress
                           ? null
@@ -335,7 +344,7 @@ class _AddressesPageState extends State<AddressesPage> {
                 if (!address.isDefault) const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: AppButton(
-                    text: 'Edit',
+                    text: l10n.edit,
                     type: AppButtonType.secondary,
                     onPressed: _viewModel.isOperationInProgress
                         ? null
@@ -356,8 +365,9 @@ class _AddressesPageState extends State<AddressesPage> {
       ),
     );
   }
-  
+
   Widget _buildAddButton() {
+    final l10n = AppLocalizations.of(context);
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
@@ -371,21 +381,21 @@ class _AddressesPageState extends State<AddressesPage> {
         ],
       ),
       child: AppButton(
-        text: 'Add New Address',
+        text: l10n.addNewAddress,
         type: AppButtonType.primary,
         isFullWidth: true,
         onPressed: () => _navigateToForm(),
       ),
     );
   }
-  
+
   void _navigateToForm({AddressModel? address}) async {
     final result = await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => AddressFormPage(address: address),
       ),
     );
-    
+
     if (result != null && result is AddressModel) {
       if (address != null) {
         await _viewModel.updateAddress(result);
@@ -394,24 +404,28 @@ class _AddressesPageState extends State<AddressesPage> {
       }
     }
   }
-  
+
   void _confirmDelete(AddressModel address) {
+    final l10n = AppLocalizations.of(context);
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Address'),
-        content: const Text('Are you sure you want to delete this address?'),
+        title: Text(l10n.deleteAddressTitle),
+        content: Text(l10n.deleteAddressConfirm),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
+            child: Text(l10n.cancel),
           ),
           TextButton(
             onPressed: () {
               Navigator.of(context).pop();
               _viewModel.deleteAddress(address.id);
             },
-            child: const Text('Delete', style: TextStyle(color: AppColors.error)),
+            child: Text(
+              l10n.delete,
+              style: const TextStyle(color: AppColors.error),
+            ),
           ),
         ],
       ),

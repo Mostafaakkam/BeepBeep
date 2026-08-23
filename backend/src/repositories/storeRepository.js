@@ -16,7 +16,23 @@ const findById = async (id) => {
   return rows[0] || null;
 };
 
+// Added for Store Ownership Authorization. Deliberately NOT part of
+// findById()'s public-facing column list: owner_id is only ever resolved
+// server-side for authorization checks (see
+// middlewares/authorizationMiddleware.js#requireStoreOwnership) and is never
+// exposed to API responses today, so it can't be trusted or spoofed from the
+// client either way.
+const findOwnerId = async (storeId) => {
+  const [rows] = await pool.execute(
+    'SELECT owner_id FROM stores WHERE id = ?',
+    [storeId]
+  );
+  if (rows.length === 0) return undefined; // store does not exist
+  return rows[0].owner_id; // may be null (store not yet assigned an owner)
+};
+
 module.exports = {
   findAllActive,
-  findById
+  findById,
+  findOwnerId
 };

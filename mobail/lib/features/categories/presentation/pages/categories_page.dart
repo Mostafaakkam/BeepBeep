@@ -1,32 +1,33 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/widgets/app_widgets.dart';
+import '../../../../l10n/generated/app_localizations.dart';
 import '../viewmodels/category_viewmodel.dart';
 import '../../../products/presentation/pages/products_page.dart';
 import '../../../../data/models/models.dart';
 
 class CategoriesPage extends StatefulWidget {
   const CategoriesPage({super.key});
-  
+
   @override
   State<CategoriesPage> createState() => _CategoriesPageState();
 }
 
 class _CategoriesPageState extends State<CategoriesPage> {
   final CategoryViewModel _viewModel = CategoryViewModel();
-  
+
   @override
   void initState() {
     super.initState();
     _viewModel.loadCategories();
   }
-  
+
   @override
   void dispose() {
     _viewModel.dispose();
     super.dispose();
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -42,8 +43,9 @@ class _CategoriesPageState extends State<CategoriesPage> {
       ),
     );
   }
-  
+
   Widget _buildHeader() {
+    final l10n = AppLocalizations.of(context);
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
@@ -59,13 +61,16 @@ class _CategoriesPageState extends State<CategoriesPage> {
       child: Row(
         children: [
           IconButton(
-            icon: const Icon(Icons.arrow_back),
+            icon: const Icon(
+              Icons.arrow_back,
+            ),
+            tooltip: l10n.goBack,
             onPressed: () => Navigator.of(context).pop(),
           ),
-          const Expanded(
+          Expanded(
             child: Text(
-              'Categories',
-              style: TextStyle(
+              l10n.categories,
+              style: const TextStyle(
                 color: AppColors.darkNavy,
                 fontWeight: FontWeight.bold,
                 fontSize: 18,
@@ -76,7 +81,7 @@ class _CategoriesPageState extends State<CategoriesPage> {
       ),
     );
   }
-  
+
   Widget _buildContent() {
     return ListenableBuilder(
       listenable: _viewModel,
@@ -84,20 +89,20 @@ class _CategoriesPageState extends State<CategoriesPage> {
         if (_viewModel.isLoading) {
           return _buildLoadingState();
         }
-        
+
         if (_viewModel.isError) {
           return _buildErrorState();
         }
-        
+
         if (!_viewModel.hasCategories) {
           return _buildEmptyState();
         }
-        
+
         return _buildCategoriesList();
       },
     );
   }
-  
+
   Widget _buildLoadingState() {
     return const Center(
       child: CircularProgressIndicator(
@@ -105,8 +110,9 @@ class _CategoriesPageState extends State<CategoriesPage> {
       ),
     );
   }
-  
+
   Widget _buildErrorState() {
+    final l10n = AppLocalizations.of(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
@@ -120,15 +126,15 @@ class _CategoriesPageState extends State<CategoriesPage> {
             ),
             const SizedBox(height: AppSpacing.md),
             Text(
-              _viewModel.errorMessage ?? 'Failed to load categories',
+              _viewModel.errorMessage ?? l10n.failedToLoadCategories,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppColors.gray,
-              ),
+                    color: AppColors.gray,
+                  ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: AppSpacing.lg),
             AppButton(
-              text: 'Retry',
+              text: l10n.retry,
               type: AppButtonType.primary,
               onPressed: _viewModel.retry,
             ),
@@ -137,8 +143,9 @@ class _CategoriesPageState extends State<CategoriesPage> {
       ),
     );
   }
-  
+
   Widget _buildEmptyState() {
+    final l10n = AppLocalizations.of(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
@@ -152,24 +159,24 @@ class _CategoriesPageState extends State<CategoriesPage> {
             ),
             const SizedBox(height: AppSpacing.md),
             Text(
-              'No categories available',
+              l10n.noCategories,
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                color: AppColors.darkNavy,
-              ),
+                    color: AppColors.darkNavy,
+                  ),
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
-              'Categories will appear here when added',
+              l10n.noCategoriesSubtitle,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppColors.gray,
-              ),
+                    color: AppColors.gray,
+                  ),
             ),
           ],
         ),
       ),
     );
   }
-  
+
   Widget _buildCategoriesList() {
     return GridView.builder(
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -185,7 +192,7 @@ class _CategoriesPageState extends State<CategoriesPage> {
       },
     );
   }
-  
+
   Widget _buildCategoryCard(CategoryModel category) {
     return AppCard(
       child: InkWell(
@@ -221,9 +228,9 @@ class _CategoriesPageState extends State<CategoriesPage> {
               Text(
                 category.name,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppColors.darkNavy,
-                  fontWeight: FontWeight.w600,
-                ),
+                      color: AppColors.darkNavy,
+                      fontWeight: FontWeight.w600,
+                    ),
                 textAlign: TextAlign.center,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,

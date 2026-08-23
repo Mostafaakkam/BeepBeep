@@ -66,6 +66,11 @@
 - Home screen categories integration with real data
 - Products filtering by category
 - Category → Products navigation flow
+- Product Filtering & Sorting API (price range, in-stock, category/store, whitelisted sort options)
+- Flutter product filter UI with bottom sheet, filter summary chips, and combined filters
+- App-wide English/Arabic localization (RTL/LTR support, persisted language selector under Profile)
+- Product Reviews & Ratings API with purchase-verified eligibility and ownership enforcement
+- Flutter review submission/edit UI, rating summary, and review list on Product Details
 
 **Not Yet Implemented:**
 - Order management dashboard for store owners
@@ -178,18 +183,19 @@
 **Database Name:** `beep_beep`
 
 **Key Tables:**
-- **users** - User accounts (id, name, phone, email, password, role, created_at, updated_at)
-- **stores** - Shop information
+- **users** - User accounts (id, name, phone, email, password, `role`: customer/store_owner/admin, created_at, updated_at) — role always re-verified server-side, never trusted from the JWT alone
+- **stores** - Shop information (`owner_id`, nullable, at most one owner per store — added by migration 002)
 - **categories** - Product categories with parent-child support
 - **products** - Main product information
 - **product_images** - Product image paths
 - **product_variants** - Product variations (color, size, price, stock)
-- **carts** - User shopping carts
+- **carts** - User shopping carts (`store_id`, nullable — set from the first item added; a cart holds items from one store at a time, added by migration 002)
 - **cart_items** - Products in shopping carts
-- **orders** - Customer orders
+- **orders** - Customer orders (`store_id`, nullable on legacy rows — an order belongs to exactly one store, derived server-side, added by migration 002)
 - **order_items** - Order history snapshots
 - **addresses** - Customer delivery addresses
 - **favorites** - User favorite products
+- **reviews** - Product ratings/reviews (see `## Reviews & Ratings Implementation` below)
 
 **Database Principles:**
 - Integer primary keys
@@ -488,6 +494,9 @@
 - **API Service Layer:** ✅ Completed
 - **State Management:** ✅ Completed (ChangeNotifier pattern)
 - **JWT Token Storage:** ✅ Completed (SharedPreferences)
+- **Localization (English/Arabic):** ✅ Implemented across all screens (see "Localization Implementation" section below); statically verified, on-device `flutter analyze`/build not run this session
+
+Note: the "Home Screen" through "Profile Screen" rows above predate this update and are stale — those screens are in fact implemented (see `docs/project_context.md` §12 for current status). This section is left otherwise unchanged per task scope; only the Localization row was added.
 
 ### Database
 - **Initial Schema:** ✅ Completed
@@ -1640,19 +1649,13 @@
 23. **Stores API Implemented** - Backend endpoints for retrieving active stores
 24. **Stores Feature Implemented** - Flutter Stores screen with real data integration
 25. **Home Stores Integration** - Featured Stores section displays real store data
+26. **Localization Implemented** - App-wide English/Arabic localization via `flutter_localizations` + ARB/gen_l10n, RTL/LTR support, persisted language selector under Profile (see "Localization Implementation" section below)
 
 ## Immediate Next Step
 
-**Implement Product Reviews and Ratings System**
+**Product Reviews & Ratings is now complete** (see "Reviews & Ratings Implementation" below). No specific next feature has been explicitly assigned yet as of this update. Candidates raised elsewhere in this document (not yet prioritized): Store Owner Dashboard (needed, among other things, so orders can actually reach `delivered` status through the app instead of via direct SQL), Product Recommendations, enhanced Search, and User Profile Management beyond logout/addresses.
 
-This is the next logical step in the marketplace feature completion:
-- Implement product reviews and ratings functionality
-- Add review display in Product Details
-- Create review submission interface
-- Implement rating aggregation and display
-- Add review management for users
-
-**Do NOT implement:**
+**Do NOT implement without explicit instruction:**
 - Admin features
 - Store owner features
 - Delivery driver integration
@@ -1861,10 +1864,262 @@ This is the next logical step in the marketplace feature completion:
 - Order tracking and delivery status updates
 - Product recommendations based on browsing history
 
+## Localization Implementation
+
+**Goal:**
+- Support English and Arabic app-wide, English as the default language, ahead of starting Product Reviews & Ratings
+- Requested as an intentional infrastructure step; explicitly instructed not to start Reviews/Ratings until this was done
+
+**Toolchain Decision:**
+- Used Flutter's standard `flutter_localizations` + ARB/gen_l10n codegen toolchain (not a custom hand-rolled system)
+- `intl: ^0.19.0` and `flutter_localizations` (from the Flutter SDK) added to `pubspec.yaml`; `flutter: generate: true` enabled
+- `l10n.yaml` added at `mobail/` root: `arb-dir: lib/l10n`, `template-arb-file: app_en.arb`, `output-class: AppLocalizations`, `output-dir: lib/l10n/generated`, `synthetic-package: false`
+- No other localization packages added — no unnecessary dependencies
+
+**ARB Files:**
+- `mobail/lib/l10n/app_en.arb` (English, default/template locale) and `mobail/lib/l10n/app_ar.arb` (Arabic) — 252 keys each, full key parity verified programmatically
+- 9 keys use ICU placeholders with typed metadata (e.g. `quantity{quantity: int}`, `helloUser{name: String}`, `orderIdHeading{id: int}`) so gen_l10n generates typed methods (`l10n.quantity(3)`) rather than plain getters
+- Existing English copy carried over verbatim into the `app_en` values — no wording changes, only extraction into keys
+
+**MVVM-Compatible Access Pattern:**
+- Views obtain the active `AppLocalizations` instance via `AppLocalizations.of(context)!` inside `build()` (and inside each `ListenableBuilder`/helper-method scope that needs it), since it requires a `BuildContext`
+- ViewModels (`LoginViewModel`, `RegisterViewModel`) do not depend on `BuildContext` directly. Instead, a `setLocalizations(AppLocalizations l10n)` method caches the instance in a nullable field; the View calls it on every `build()`. `Validators` methods now take `AppLocalizations` as their first parameter so validation error text is localized without the ViewModel touching `BuildContext`
+- This preserves the existing MVVM boundary (View → ViewModel → Repository → API Service) exactly
+
+**Locale Persistence:**
+- New `mobail/lib/core/locale/locale_provider.dart`: `LocaleProvider extends ChangeNotifier` (module-level singleton `localeProvider`, matching the app's existing no-DI/global-`ChangeNotifier` convention used elsewhere, e.g. `AuthViewModel`)
+- Persists the selected language code (`'en'`/`'ar'`) via `SharedPreferences` (already a project dependency — no new package)
+- Defaults to English (`Locale('en')`) when no preference is stored, or if `SharedPreferences` is unavailable for any reason
+- `mobail/lib/main.dart`: `BeepBeepApp` converted from `StatelessWidget` to `StatefulWidget`; `initState` calls `localeProvider.loadSavedLocale()`; `build()` wraps `MaterialApp` in a `ListenableBuilder(listenable: localeProvider)` and sets `locale`, `supportedLocales: AppLocalizations.supportedLocales`, and `localizationsDelegates: [AppLocalizations.delegate, GlobalMaterialLocalizations.delegate, GlobalWidgetsLocalizations.delegate, GlobalCupertinoLocalizations.delegate]`
+
+**Language Selector:**
+- Added to `mobail/lib/features/home/presentation/pages/profile_page.dart` (Profile screen) as a new card with two tappable options (English / Arabic), wrapped in `ListenableBuilder(listenable: localeProvider)` so the selection updates immediately
+- Calls `localeProvider.setLocale(const Locale('en'))` / `Locale('ar')` on tap
+
+**RTL/LTR Handling:**
+- Flutter derives `Directionality` automatically from the active `Locale` once wired into `MaterialApp` — no manual `Directionality` widget needed
+- Manual fixes applied on top of that automatic behavior, where the original code hardcoded a visual direction:
+  - `Icon(Icons.arrow_back, )` on every custom back-arrow icon (Flutter's built-in mechanism for auto-mirroring a directional glyph); applied to Categories, Products, Product Details, Search, Favorites, Cart, Checkout, Orders, Order Details, Addresses, Address Form headers. Also applied to `Icons.chevron_right` list-row indicators in Search.
+  - `EdgeInsets.only(right: ...)` → `EdgeInsetsDirectional.only(end: ...)` for horizontal-list item spacing (Home categories/featured-store cards, Product Details image thumbnail carousel)
+  - `Positioned(right: ..., top: ...)` → `PositionedDirectional(end: ..., top: ...)` for the Home bottom-nav cart badge
+  - `TextAlign.right` → `TextAlign.end` for the Order Details info-row value alignment
+- These are mechanical, visually-neutral-in-LTR changes; no UI redesign
+
+**Screens Covered:**
+- Auth (Login, Register), Splash, Home (incl. bottom navigation), Stores, Categories, Products (incl. filter sheet), Product Details, Search, Favorites, Cart, Checkout, Orders, Order Details, Order Success, Addresses, Address Form, Profile (incl. new language selector), and all loading/error/empty states across those screens
+- `mobail/lib/design_system_demo.dart`'s `DesignSystemDemo` class intentionally left untranslated — it is unreferenced dead code (not navigated to from anywhere in the app) and outside the requested screen list
+
+**Files Created:**
+- `mobail/l10n.yaml`
+- `mobail/lib/l10n/app_en.arb`
+- `mobail/lib/l10n/app_ar.arb`
+- `mobail/lib/core/locale/locale_provider.dart`
+- `mobail/lib/l10n/generated/app_localizations.dart` (generated by `flutter gen-l10n`/`flutter pub get`, not committed as source)
+
+**Files Modified:**
+- `mobail/pubspec.yaml` — added `flutter_localizations`, `intl`, `generate: true`
+- `mobail/lib/main.dart` — locale wiring
+- `mobail/lib/core/utils/validators.dart` — localized validation messages
+- `mobail/lib/features/auth/presentation/viewmodels/login_viewmodel.dart`, `register_viewmodel.dart` — `setLocalizations()` bridge, localized error messages
+- Every page under `mobail/lib/features/*/presentation/pages/` (18 files: login, register, splash, home, profile, stores, categories, products, product_filter_sheet, product_details, search, favorites, cart, checkout, orders, order_details, order_success, addresses, address_form)
+- `docs/project_context.md`, `docs/AI_PROJECT_BRIEF.md`, `development_status.md` — documentation updates
+
+**Backend/Database:** No changes. This was explicitly out of scope and untouched.
+
+**Testing Performed:**
+- Programmatic ARB validation: both `.arb` files are valid JSON, `app_en`/`app_ar` have identical 252-key sets, all 9 ICU placeholder tokens match their declared metadata in both locales
+- Cross-referenced every `l10n.<key>`/`AppLocalizations.of(context)!.<key>` call across all modified files against the ARB key set — no undefined keys referenced
+- Grep sweep for leftover hardcoded user-facing strings and for any remnants of the old custom `context.l10n.get()` API — none found (only the out-of-scope `DesignSystemDemo` demo widget still has literal strings)
+- Brace/paren/bracket balance check across all modified files
+- Diffed the new pages against their true on-device originals (via the desktop bridge) for several representative files (`home_page.dart`, `profile_page.dart`, `checkout_page.dart`, `search_page.dart`, `product_filter_sheet.dart`) to confirm only localization/RTL-related lines changed and all original English copy was preserved verbatim
+- **Not performed:** `flutter pub get`, `flutter gen-l10n`, `flutter analyze`, and an actual on-device/emulator build/run. The cloud sandbox this session ran in could not download the Flutter/Dart SDK (network policy blocks `storage.googleapis.com`/`dl.google.com`/`pub.dev`), and no local-device shell was available this session to run Flutter on the developer's machine instead. **This should be run locally before treating localization as fully verified**: `flutter pub get && flutter gen-l10n && flutter analyze`, then a manual English → Arabic → English test on a device/emulator, checking RTL layout and that the language choice survives an app restart.
+
+## Reviews & Ratings Implementation
+
+**Goal:**
+- Authenticated users who purchased a product (via a `delivered` order) can leave a 1-5 star rating with an optional text review, edit or delete their own review, and see the product's average rating and review count
+- Enforce ownership and purchase-eligibility on the backend; reuse the existing Design System and localization system; do not redesign existing screens or touch unrelated features
+
+**Database:**
+- New table `reviews`: `id, product_id, user_id, rating (TINYINT), comment (TEXT, nullable), created_at, updated_at`
+- `UNIQUE (user_id, product_id)` — one review per user per product, enforced at the database level (in addition to an application-level check in `reviewService.js`)
+- `CHECK (rating BETWEEN 1 AND 5)` (MySQL 8.0.16+/MariaDB 10.2+; the service layer validates this regardless, so older MySQL versions where the CHECK is a silent no-op are still protected)
+- Foreign keys to `products(id)` and `users(id)`, both `ON DELETE CASCADE`; indexes on `product_id` and `user_id`
+- Migration file: `database/migrations/001_create_reviews_table.sql` — purely additive, no existing table altered, run manually (this project has no migration runner)
+- No `average_rating`/`review_count` columns added anywhere — both are computed on read via `AVG(rating)`/`COUNT(*)` over `reviews`, avoiding a denormalized value that could drift out of sync
+
+**Purchase-Eligibility Design Decision:**
+- A review requires the reviewing user to have at least one order with `status = 'delivered'` that contains the product (`orders JOIN order_items`), checked live at write time in `reviewRepository.hasPurchased()` — not stored as an `order_id` column on the review itself
+- Rationale: a user could purchase the same product across multiple orders, and tying the review to one specific order adds complexity without benefit; the schema stays minimal
+- **Important finding carried over from investigation:** no code path anywhere in this backend currently transitions an order to `status = 'delivered'` (only `pending` → `cancelled` exists; there is no store/admin dashboard yet). This is a pre-existing gap unrelated to this feature, but it means the purchase-eligibility path could not be exercised through the app itself — verification set an order's status directly via SQL (see Testing below). Implementing a store/order-fulfillment dashboard would resolve this.
+
+**Backend Architecture:**
+- Layered architecture: Repository → Service → Controller → Routes (same convention as every other feature)
+- `backend/src/repositories/reviewRepository.js` — parameterized queries: `findByProductId`, `findById`, `findByUserAndProduct`, `create`, `update`, `remove`, `getRatingSummary`, `hasPurchased`
+- `backend/src/services/reviewService.js` — validation (rating integer 1-5, comment ≤1000 chars) and business rules (product must exist, no duplicate review, purchase required), all with `.code`-tagged errors following the existing convention (`PRODUCT_NOT_FOUND`, `INVALID_RATING`, `COMMENT_TOO_LONG`, `ALREADY_REVIEWED`, `PURCHASE_REQUIRED`, `REVIEW_NOT_FOUND`)
+- `backend/src/controllers/reviewController.js` — HTTP handling, maps error codes to status codes, same response envelope (`{success, message, data}`) as every other controller
+- `backend/src/routes/reviewRoutes.js` — mounted at `/api/reviews` in `app.js`
+- `backend/src/repositories/productRepository.js` — `findById()` extended with a second query computing `review_count`/`average_rating` for the product, attached to the returned object (used by `GET /api/products/:id`)
+- Ownership on edit/delete is enforced the same way as Addresses/Favorites: `WHERE id = ? AND user_id = ?` directly in the SQL, not checked only in application code
+
+**API Endpoints:**
+- `GET /api/reviews/product/:productId` — public; returns `{ reviews: [...], summary: { reviewCount, averageRating } }`
+- `GET /api/reviews/product/:productId/eligibility` — authenticated; returns `{ hasPurchased, hasReviewed, canReview, existingReview }`
+- `POST /api/reviews/product/:productId` — authenticated; body `{ rating, comment? }`; 201/400/403/404/409/500
+- `PATCH /api/reviews/:id` — authenticated, ownership-enforced; body `{ rating, comment? }`; 200/400/404/500
+- `DELETE /api/reviews/:id` — authenticated, ownership-enforced; 200/404/500
+- (See `docs/project_context.md` §6 for full request/response examples)
+
+**Flutter Architecture:**
+- `mobail/lib/data/models/review_model.dart` — `Review`, `RatingSummary`
+- `mobail/lib/data/repositories/review_repository.dart` — `ReviewRepository` (list/eligibility/create/update/delete), JWT injection via `TokenStorage`, same pattern as `FavoriteRepository`
+- `mobail/lib/features/reviews/presentation/viewmodels/review_viewmodel.dart` — `ReviewViewModel extends ChangeNotifier`: review-list state (`initial/loading/success/error`), eligibility state, and submit/edit/delete state, all exposed as getters
+- `mobail/lib/features/reviews/presentation/widgets/review_form_sheet.dart` — `ReviewFormSheet`, a shared bottom-sheet form (5-star `IconButton` picker + optional `AppTextField` comment, max 1000 chars) used for both create and edit, driven by an injected `onSubmit` callback so it has no direct API/ViewModel coupling
+- `mobail/lib/features/products/presentation/pages/product_details_page.dart` — extended with: a rating-summary card, the review list (excluding the current user's own review, which is shown separately with edit/delete), and a context-appropriate action area (write-review button / own-review card / purchase-required message / login prompt)
+- `mobail/lib/data/models/product_model.dart` — `averageRating`/`reviewCount` fields (default 0/0.0 for responses that don't include them, e.g. the products list)
+- `mobail/lib/config/api_config.dart` — `reviews = '/reviews'` endpoint constant
+
+**Bug Found & Fixed While Implementing This Feature:**
+- `product_details_page.dart` was discovered to still contain hardcoded English strings and to never call `AuthViewModel.checkAuthStatus()` in `initState()` — meaning `isAuthenticated` was always `false` there, silently breaking both the favorite-button state and (would have broken) review eligibility. This page was not among the files spot-checked during the prior Localization pass (see that section's Testing notes). Both were fixed as part of this change: the page is now fully localized (reusing ARB keys that, notably, already existed for this exact purpose — `productDetailsTitle`, `addToCart`, etc. — suggesting the keys were added but the page was never wired up), and `initState` now awaits `checkAuthStatus()` before reading `isAuthenticated`.
+
+**Authorization / Business Rules:**
+- Must be authenticated (JWT) to check eligibility, create, edit, or delete a review
+- Must have purchased the product via a `delivered` order to create a review
+- One review per user per product (service-layer check + database `UNIQUE` constraint as defense in depth)
+- Rating must be an integer 1-5; comment is optional, trimmed, max 1000 characters
+- Only the review's owner can edit or delete it (`user_id` from the JWT, never trusted from the client; ownership enforced in the SQL `WHERE` clause)
+- All queries parameterized; no raw SQL concatenation
+
+**Testing Performed:**
+- Assembled a complete copy of the backend (all existing + new files) in the cloud sandbox, ran `node -c` syntax checks on every backend file (all passed), then `npm install` (123 packages, no errors)
+- MySQL/MariaDB *is* available in this cloud sandbox (unlike the Flutter SDK) — built a throwaway schema in a local MariaDB instance from the exact column lists confirmed in the repository code, applied `001_create_reviews_table.sql`, ran the project's own `backend/src/seeders/seed.js` unmodified (5 users, 15 products, etc. — succeeded), then started the real server (`node src/server.js`) and exercised it with real HTTP requests (`curl`) end-to-end:
+  - Eligibility before any purchase → `canReview: false`; `POST` review before purchase → `403 PURCHASE_REQUIRED`; missing token → `401`
+  - Inserted a `delivered` order + `order_items` row directly via SQL (see "Purchase-Eligibility Design Decision" above for why) → eligibility flipped to `canReview: true`
+  - Invalid ratings (`0`, `6`, `3.7`) → `400 INVALID_RATING`; comment >1000 chars → `400 COMMENT_TOO_LONG`; review for a non-existent product → `404 PRODUCT_NOT_FOUND`
+  - Valid review creation → `201`; duplicate review attempt by the same user → `409 ALREADY_REVIEWED`; a second user's duplicate insert attempted directly in SQL (bypassing the app) → correctly rejected by the database `UNIQUE` constraint
+  - Second user reviews the same product (after their own `delivered` order) → `GET /api/products/:id` average recalculates correctly (5 and 3 → 4.0 average, count 2)
+  - Cross-user ownership: user 2 attempting to `PATCH`/`DELETE` user 1's review → `404` (not `403`, matching the existing Address/Favorite ownership-check convention of not revealing the review exists)
+  - Owner edits their own review → `200`, change reflected immediately in `GET /api/reviews/product/:id` and in the recalculated product average; owner deletes their review → `200`, average recalculates again (back down to just the remaining review); deleting again → `404`
+  - `GET /api/products/:id` confirmed to expose `average_rating`/`review_count` correctly at every stage above
+  - Regression check: `GET /api/products`, `GET /api/stores`, `GET /api/favorites`, `GET /api/orders` (authenticated) all still return successfully — no unrelated endpoint broken
+- Flutter side: **not** run through `flutter analyze`/`flutter pub get`/an actual build — the cloud sandbox's network policy still blocks `pub.dev`/`storage.googleapis.com` this session (re-confirmed: both return a blocked `CONNECT` tunnel), and no local device shell was available. Verified statically instead: all new/modified `.dart` files reviewed line-by-line for import-path correctness (cross-checked against the existing, working imports in sibling files at the same directory depth), correct widget/method signatures against the actual Design System widget source (`AppButton`, `AppCard`, `AppTextField`, `AppColors`, `AppSpacing`, `AppBorderRadius`), and correct `l10n.<key>` usage against the ARB files; ARB key parity (270 keys, English/Arabic) verified programmatically. **Run `flutter pub get && flutter analyze` locally before treating the Flutter side as fully verified**, same caveat as the Localization feature.
+
+**Files Created:**
+- `database/migrations/001_create_reviews_table.sql`
+- `backend/src/repositories/reviewRepository.js`
+- `backend/src/services/reviewService.js`
+- `backend/src/controllers/reviewController.js`
+- `backend/src/routes/reviewRoutes.js`
+- `mobail/lib/data/models/review_model.dart`
+- `mobail/lib/data/repositories/review_repository.dart`
+- `mobail/lib/features/reviews/presentation/viewmodels/review_viewmodel.dart`
+- `mobail/lib/features/reviews/presentation/widgets/review_form_sheet.dart`
+
+**Files Modified:**
+- `backend/src/app.js` — mounted `/api/reviews`
+- `backend/src/repositories/productRepository.js` — `findById()` now includes `average_rating`/`review_count`
+- `mobail/lib/data/models/models.dart` — export `review_model.dart`
+- `mobail/lib/data/models/product_model.dart` — `averageRating`/`reviewCount` fields
+- `mobail/lib/config/api_config.dart` — `reviews` endpoint constant
+- `mobail/lib/features/products/presentation/pages/product_details_page.dart` — review UI added; localization + auth-check bug fixed (see above)
+- `mobail/lib/l10n/app_en.arb`, `mobail/lib/l10n/app_ar.arb` — 18 new keys added, full parity maintained
+- `docs/project_context.md`, `docs/AI_PROJECT_BRIEF.md`, `development_status.md` — documentation updates
+
+**Current Project Status:**
+- Core marketplace features, Authentication, Products (with filtering), Cart, Orders, Search, Favorites, Addresses, Categories, Localization: ✅ Completed
+- Product Reviews & Ratings — Backend: ✅ Completed, verified end-to-end against a real (sandbox) MySQL/MariaDB instance
+- Product Reviews & Ratings — Flutter: ✅ Implemented, statically verified only (see Testing above)
+- No admin dashboard, store owner dashboard, or payment gateway integration — unchanged, out of scope for this feature
+
+## Role System, Store Ownership & Single-Store Order Rule Implementation
+
+**Goal:**
+- Implement the backend foundation (plus minimal, non-UI Flutter changes) for multi-role users, store ownership, and a governing business rule: **every order must contain products from exactly one store**, and a customer's cart must also contain products from only one store at a time (delivery is handled from a single store — multi-store orders are not supported)
+- Explicitly scoped as backend-foundation-only: **no Store Owner Dashboard UI, Admin Dashboard, product-management UI, or payment gateway work** was done as part of this feature
+
+**Database:**
+- `database/migrations/002_add_roles_ownership_single_store.sql` — additive, nullable-first, run manually after `001_create_reviews_table.sql` (no migration runner in this project):
+  - `stores.owner_id` (nullable) → `users(id)`, index `idx_stores_owner_id` — a store has at most one owner; may have none yet
+  - `carts.store_id` (nullable) → `stores(id)`, index `idx_carts_store_id` — set to the store of the first item added to an otherwise-empty cart; reset to `NULL` whenever the cart becomes empty again
+  - `orders.store_id` (nullable) → `stores(id)`, index `idx_orders_store_id` — `NULL` only on legacy pre-migration orders; always populated server-side on new orders
+  - The migration file includes SQL-comment guidance for later tightening `orders.store_id` to `NOT NULL` (detect any pre-existing multi-store orders via `order_items`/`products`, backfill single-store orders, only then add the constraint) — **this tightening was deliberately not applied**, per the instruction to inspect existing data before making anything mandatory
+  - Optional `CHECK (role IN ('customer','store_owner','admin'))` on `users.role` included, guarded for MySQL/MariaDB version differences the same way the Reviews feature's `CHECK` was
+- `backend/src/seeders/seed.js` updated: two of the five demo users (`ahmad`, `sara`) are now `store_owner`s; `ahmad` owns two stores (demonstrates one owner/multiple stores), the electronics and gifts stores are deliberately left with no owner (demonstrates the "unowned store" case); one of the two seeded demo carts was corrected to no longer straddle two stores (it accidentally did before this change, which would have violated the new rule)
+
+**Backend Architecture:**
+- New `backend/src/middlewares/authorizationMiddleware.js`, layered on top of the existing `authenticate` middleware (unchanged):
+  - `requireRole(...allowedRoles)` — re-fetches the user's role from `users` via `userRepository.findById()` on every call (never trusts the JWT's `role` claim alone), so a role change in the database takes effect immediately on the next request with an already-issued token, not after 7 days
+  - `requireStoreOwnership(paramName)` / `requireProductOwnership(paramName)` — resolve ownership server-side via `storeRepository.findOwnerId()` / `productRepository.findStoreIdById()` (both new, and deliberately separate from the existing public-facing `findById()` methods so `owner_id` is never exposed on a public response); `admin` always bypasses the ownership check; a client-supplied owner/store/user id anywhere in the request body is never consulted
+  - `requireProductOwnership` is implemented and ready but not mounted on any route yet — no product-management endpoints exist in this scope
+- Single-Store Cart Rule, `backend/src/services/cartService.js` (`addItem`) + `backend/src/repositories/cartRepository.js`: compares the product's store against the cart's current `store_id`; throws a `.code = 'STORE_MISMATCH'` error (with `.data = {currentStore, requestedStore}`) on a cross-store add instead of mixing stores; new `switchStore()` repository function runs the clear-and-add as one DB transaction (`backend/src/routes/cartRoutes.js`: `POST /api/cart/switch-store`)
+- Single-Store Order Rule, `backend/src/repositories/orderRepository.js` (`createOrder`): derives `store_id` from the cart's actual items (the source of truth, independent of `carts.store_id`) and throws `.code = 'MULTI_STORE_CART'` if more than one distinct store is found — a second, independent defensive check beyond the cart-level enforcement above
+- New `GET /api/stores/:storeId/orders` (`backend/src/routes/storeRoutes.js`, `storeController.js`, `orderService.getOrdersForStore`, `orderRepository.findByStoreId`) — minimal store-owner order-visibility endpoint, added specifically to give `requireStoreOwnership` a real, testable mounting point (not a dashboard)
+
+**Two Pre-Existing Bugs Found & Fixed While Implementing This Feature** (both distinct from the one bug this feature was explicitly asked to fix, and both would have blocked testing this feature):
+1. `cartRepository.createCart()`'s post-insert `SELECT` was missing the `store_id` column, so a brand-new cart's `store_id` came back `undefined` instead of `null` — crashed the very first add-to-cart for any new cart once the single-store check was added. Fixed by adding the column to the `SELECT`.
+2. `orderRepository.createOrder()`'s `order_items` INSERT declared 11 columns but its `VALUES` clause had only 10 placeholders (one `?` short) — every checkout (`POST /api/orders`) failed with `ER_WRONG_VALUE_COUNT_ON_ROW`, meaning checkout could not have worked in this codebase before this fix, entirely independent of the single-store feature. Fixed by adding the missing `?`. Diagnosed by calling `orderRepository.createOrder` directly from a standalone Node script (bypassing HTTP) to capture the raw MySQL driver error.
+
+A third pre-existing bug was also found and fixed as a direct blocker to testing this feature (not a bug the user asked for, but leaving it would have made the cart/store feature above impossible to verify): `cartRepository.findByUserId()`'s cart-items query did a `LEFT JOIN product_images` with no `GROUP BY`/limiting — a one-to-many join — so a cart item for a product with more than one image (most seeded products have 2–3) fanned out into duplicate rows in the API response. Replaced with a correlated subquery that picks one representative image per product, matching the seed data's "first image is primary" convention; same response shape, no Flutter changes needed.
+
+**The documented pre-existing bug this feature was explicitly asked to fix** (`orderRepository.findById()` selecting `products.address`, a column that doesn't exist) is now fixed by resolving the store once via the order's own new `store_id` (`SELECT name, address FROM stores WHERE id = ?`), instead of a per-item join to the wrong table — cheaper and correct. Legacy orders with `store_id IS NULL` get `store_name: null` gracefully rather than a SQL error. Response shape unchanged — no Flutter change required for this specific fix.
+
+**Flutter Architecture** (deliberately minimal — no dashboard UI):
+- `mobail/lib/data/services/api_service.dart` — `ApiException` extended with optional `code`/`data` fields, parsed from the response body, so a backend error's machine-readable `code` (e.g. `STORE_MISMATCH`) reaches the repository/viewmodel layer
+- `mobail/lib/data/repositories/cart_repository.dart` — new `switchStore()` method calling `POST /api/cart/switch-store`
+- `mobail/lib/features/cart/presentation/viewmodels/cart_viewmodel.dart` — new `StoreMismatchException` (carries `currentStore`/`requestedStore`); `addItem()` now rethrows it specifically on `ApiException.code == 'STORE_MISMATCH'` instead of folding it into the generic error message like every other failure; new `switchStore()` method mirroring `addItem()`'s loading/error handling
+- `mobail/lib/features/products/presentation/pages/product_details_page.dart` — `_handleAddToCart()` catches `StoreMismatchException` and shows a confirmation `AlertDialog` ("Clear the cart and switch to this store?", same `showDialog<bool>`/`AlertDialog` pattern already used for order cancellation in `order_details_page.dart`); confirming calls `CartViewModel.switchStore()`, cancelling leaves the cart untouched (the backend never modified it on the original rejection)
+- `mobail/lib/config/api_config.dart` — `cartSwitchStore` endpoint constant
+- Localized (English/Arabic), RTL-safe (plain `AlertDialog`/`Text`, no custom layout — respects ambient `Directionality` the same way every other dialog in the app does)
+- No Flutter routing, navigation, or UI redesign beyond this one dialog — no Store Owner Dashboard, no role-based navigation branching (the client already persists `role` via `TokenStorage`, unused for now, ready for a future dashboard)
+
+**Authorization / Business Rules:**
+- Role is never trusted from the client or from a JWT claim alone — `requireRole` re-verifies against the database on every call
+- Store ownership is always resolved server-side from the route param, never from a client-supplied id in the body; `admin` bypasses ownership checks everywhere they're enforced
+- A cart may contain items from only one store at a time, enforced at add-time (`STORE_MISMATCH`) and reset when the cart empties
+- An order may contain items from only one store, enforced a second time at checkout independent of the cart-level check (`MULTI_STORE_CART`), and the order's `store_id` is always derived server-side
+- Existing customer authentication behavior (register/login/JWT/`authenticate`) is unchanged
+
+**Testing Performed:**
+- Built a throwaway MariaDB 10.11 schema + a full copy of the backend in the cloud sandbox (same methodology as the Reviews feature), applied `002_add_roles_ownership_single_store.sql`, ran the project's own `seed.js` unmodified, started the real server, and exercised it end-to-end with real HTTP requests (`curl`)
+- **47/47 checks passing**, covering: customer auth regression, role-based authorization (including DB-freshness — promoting/demoting a user's role mid-test and confirming the *same, already-issued* JWT reflects the change immediately in both directions, proving the JWT `role` claim alone is never trusted), store ownership (real owner succeeds; a different real store owner is rejected; a plain customer is rejected; unauthenticated is rejected; an unowned store rejects everyone including a legitimate store owner), admin ownership bypass (including on an unowned store), same-store cart adds, cross-store cart rejection with correct `STORE_MISMATCH` payload and an unchanged cart afterward, atomic switch-store, checkout single-store validation, a deliberate bypass simulation (inserting a second-store cart item directly via SQL, outside the API) confirming the checkout-time `MULTI_STORE_CART` defensive check independently catches what the add-time check didn't see, correct `orders.store_id` population, the `findById()` bug fix (correct real store name, not product name), existing order list/cancel regression, no client-supplied owner/user/store id bypasses any authorization check, parameterized-SQL sanity check, and a regression check that the unrelated Reviews feature still responds correctly
+- Flutter side: **not** run through `flutter analyze`/`flutter pub get` — same cloud-sandbox network restriction as the Localization and Reviews features (Flutter SDK download blocked). Verified statically instead: brace/structure review of every edited file, `.arb` files validated as well-formed JSON, and the generated `app_localizations*.dart` files hand-updated to match (following the exact pattern of existing entries like `cancelOrderConfirm`/`yesCancelOrder`) since `flutter gen-l10n` cannot run here either. **Run `flutter pub get && flutter analyze` locally before treating the Flutter side as fully verified**, same caveat as every other Flutter change made in a cloud-sandbox session.
+
+**Files Created:**
+- `database/migrations/002_add_roles_ownership_single_store.sql`
+- `backend/src/middlewares/authorizationMiddleware.js`
+
+**Files Modified:**
+- `backend/src/repositories/userRepository.js` — `findById()` added
+- `backend/src/repositories/storeRepository.js` — `findOwnerId()` added
+- `backend/src/repositories/productRepository.js` — `findStoreIdById()` added
+- `backend/src/repositories/cartRepository.js` — `store_id` added to cart selects; `createCart()` bug fix; `resetStoreIdIfEmpty()`, `setCartStoreId()`, `switchStore()` added; cart-items fan-out bug fixed
+- `backend/src/services/cartService.js` — `addItem()` single-store check; `switchStore()` added
+- `backend/src/controllers/cartController.js` — `STORE_MISMATCH` → 409 handling; `switchStore` controller added
+- `backend/src/routes/cartRoutes.js` — `POST /cart/switch-store` route added
+- `backend/src/repositories/orderRepository.js` — `findById()` bug fix (store resolution); `createOrder()` single-store derivation/validation + `order_items` INSERT bug fix; `findByStoreId()` added
+- `backend/src/controllers/orderController.js` — `MULTI_STORE_CART` → 400 handling
+- `backend/src/services/orderService.js` — `getOrdersForStore()` added
+- `backend/src/controllers/storeController.js` — `getStoreOrders` added
+- `backend/src/routes/storeRoutes.js` — `GET /:storeId/orders` route added
+- `backend/src/seeders/seed.js` — roles, store ownership, single-store cart fix
+- `mobail/lib/data/services/api_service.dart` — `ApiException.code`/`.data`
+- `mobail/lib/data/repositories/cart_repository.dart` — `switchStore()` added
+- `mobail/lib/features/cart/presentation/viewmodels/cart_viewmodel.dart` — `StoreMismatchException`, `addItem()` change, `switchStore()` added
+- `mobail/lib/features/products/presentation/pages/product_details_page.dart` — `STORE_MISMATCH` confirmation dialog
+- `mobail/lib/config/api_config.dart` — `cartSwitchStore` endpoint constant
+- `mobail/lib/l10n/app_en.arb`, `mobail/lib/l10n/app_ar.arb`, and the generated `app_localizations*.dart` files — 4 new keys added (hand-updated in the generated files since `gen-l10n` cannot run in this sandbox)
+- `docs/project_context.md`, `docs/AI_PROJECT_BRIEF.md`, `development_status.md` — documentation updates
+
+**Current Project Status:**
+- Core marketplace features, Authentication, Products (with filtering), Cart, Orders, Search, Favorites, Addresses, Categories, Localization, Product Reviews & Ratings: ✅ Completed
+- Role System, Store Ownership & Single-Store Order Rule — Backend: ✅ Completed, verified end-to-end (47/47 checks) against a real (sandbox) MariaDB instance
+- Role System, Store Ownership & Single-Store Order Rule — Flutter (minimal STORE_MISMATCH handling only): ✅ Implemented, statically verified only (see Testing above)
+- **Still not implemented, unchanged by this feature:** Store Owner Dashboard UI, Admin Dashboard, product-management UI, payment gateway integration
+
 ---
 
 **Document Purpose:** This AI_PROJECT_BRIEF.md provides portable high-level context for any AI assistant or new coding session to understand the Beep Beep project without scanning the entire repository.
 
 **Maintenance:** This document should be updated after major architectural changes or when the overall project direction shifts significantly. For detailed feature-specific context, refer to docs/project_context.md.
 
-**Last Updated:** 2026-08-20 (Updated with Categories implementation)
+**Last Updated:** 2026-08-23 (Updated with Role System, Store Ownership & Single-Store Order Rule implementation)

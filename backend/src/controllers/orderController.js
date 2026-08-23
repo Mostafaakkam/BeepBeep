@@ -84,7 +84,18 @@ const createOrder = async (req, res) => {
         message: 'Address is too short'
       });
     }
-    
+
+    // Single-Store Order Rule: checkout-time defensive validation tripped
+    // (should not normally happen given cartService's add-time enforcement;
+    // see orderRepository.createOrder for where this is derived).
+    if (error.code === 'MULTI_STORE_CART') {
+      return res.status(400).json({
+        success: false,
+        message: 'Cart contains products from multiple stores',
+        code: 'MULTI_STORE_CART'
+      });
+    }
+
     if (error.message === 'Cart is empty') {
       return res.status(400).json({
         success: false,

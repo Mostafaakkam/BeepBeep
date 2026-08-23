@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/widgets/app_widgets.dart';
+import '../../../../l10n/generated/app_localizations.dart';
 import '../viewmodels/product_viewmodel.dart';
 import '../../../../data/models/models.dart';
 import 'product_details_page.dart';
@@ -11,7 +12,7 @@ class ProductsPage extends StatefulWidget {
   final String? storeName;
   final int? categoryId;
   final String? categoryName;
-  
+
   const ProductsPage({
     super.key,
     this.storeId,
@@ -19,14 +20,14 @@ class ProductsPage extends StatefulWidget {
     this.categoryId,
     this.categoryName,
   });
-  
+
   @override
   State<ProductsPage> createState() => _ProductsPageState();
 }
 
 class _ProductsPageState extends State<ProductsPage> {
   final ProductViewModel _viewModel = ProductViewModel();
-  
+
   @override
   void initState() {
     super.initState();
@@ -37,13 +38,13 @@ class _ProductsPageState extends State<ProductsPage> {
       categoryName: widget.categoryName,
     );
   }
-  
+
   @override
   void dispose() {
     _viewModel.dispose();
     super.dispose();
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -59,8 +60,9 @@ class _ProductsPageState extends State<ProductsPage> {
       ),
     );
   }
-  
+
   Widget _buildHeader() {
+    final l10n = AppLocalizations.of(context);
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
@@ -79,21 +81,24 @@ class _ProductsPageState extends State<ProductsPage> {
             children: [
               if (widget.storeId != null || widget.categoryId != null) ...[
                 IconButton(
-                  icon: const Icon(Icons.arrow_back),
+                  icon: const Icon(
+                    Icons.arrow_back,
+                  ),
+                  tooltip: l10n.goBack,
                   onPressed: () => Navigator.of(context).pop(),
                 ),
               ],
               Expanded(
                 child: Text(
-                  widget.storeName != null 
-                      ? '${widget.storeName} Products'
+                  widget.storeName != null
+                      ? l10n.productsOf(widget.storeName!)
                       : widget.categoryName != null
-                          ? '${widget.categoryName} Products'
-                          : 'Products',
+                          ? l10n.productsOf(widget.categoryName!)
+                          : l10n.products,
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    color: AppColors.darkNavy,
-                    fontWeight: FontWeight.bold,
-                  ),
+                        color: AppColors.darkNavy,
+                        fontWeight: FontWeight.bold,
+                      ),
                 ),
               ),
               IconButton(
@@ -107,11 +112,12 @@ class _ProductsPageState extends State<ProductsPage> {
       ),
     );
   }
-  
+
   Widget _buildFilterChips() {
     return ListenableBuilder(
       listenable: _viewModel,
       builder: (context, child) {
+        final l10n = AppLocalizations.of(context);
         return Padding(
           padding: const EdgeInsets.only(top: AppSpacing.sm),
           child: Wrap(
@@ -134,7 +140,7 @@ class _ProductsPageState extends State<ProductsPage> {
                 ),
               if (_viewModel.filter.inStock)
                 _buildFilterChip(
-                  'In Stock',
+                  l10n.inStock,
                   () => _viewModel.clearFilters(),
                 ),
               _buildFilterChip(
@@ -146,7 +152,7 @@ class _ProductsPageState extends State<ProductsPage> {
                   foregroundColor: AppColors.primary,
                 ),
                 onPressed: _viewModel.clearFilters,
-                child: const Text('Clear All'),
+                child: Text(l10n.clearAll),
               ),
             ],
           ),
@@ -154,7 +160,7 @@ class _ProductsPageState extends State<ProductsPage> {
       },
     );
   }
-  
+
   Widget _buildFilterChip(String label, VoidCallback onRemove) {
     return Chip(
       label: Text(label),
@@ -168,7 +174,7 @@ class _ProductsPageState extends State<ProductsPage> {
       ),
     );
   }
-  
+
   void _showFilterSheet() {
     showModalBottomSheet(
       context: context,
@@ -181,7 +187,7 @@ class _ProductsPageState extends State<ProductsPage> {
       ),
     );
   }
-  
+
   Widget _buildContent() {
     return ListenableBuilder(
       listenable: _viewModel,
@@ -189,20 +195,20 @@ class _ProductsPageState extends State<ProductsPage> {
         if (_viewModel.isLoading) {
           return _buildLoadingState();
         }
-        
+
         if (_viewModel.isError) {
           return _buildErrorState();
         }
-        
+
         if (_viewModel.isEmpty) {
           return _buildEmptyState();
         }
-        
+
         return _buildProductsGrid();
       },
     );
   }
-  
+
   Widget _buildLoadingState() {
     return const Center(
       child: CircularProgressIndicator(
@@ -210,8 +216,9 @@ class _ProductsPageState extends State<ProductsPage> {
       ),
     );
   }
-  
+
   Widget _buildErrorState() {
+    final l10n = AppLocalizations.of(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
@@ -225,15 +232,15 @@ class _ProductsPageState extends State<ProductsPage> {
             ),
             const SizedBox(height: AppSpacing.md),
             Text(
-              _viewModel.errorMessage ?? 'Failed to load products',
+              _viewModel.errorMessage ?? l10n.failedToLoadProducts,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppColors.gray,
-              ),
+                    color: AppColors.gray,
+                  ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: AppSpacing.lg),
             AppButton(
-              text: 'Retry',
+              text: l10n.retry,
               type: AppButtonType.primary,
               onPressed: _viewModel.retry,
             ),
@@ -242,10 +249,11 @@ class _ProductsPageState extends State<ProductsPage> {
       ),
     );
   }
-  
+
   Widget _buildEmptyState() {
+    final l10n = AppLocalizations.of(context);
     final hasFilters = _viewModel.hasFilters;
-    
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
@@ -259,28 +267,28 @@ class _ProductsPageState extends State<ProductsPage> {
             ),
             const SizedBox(height: AppSpacing.md),
             Text(
-              hasFilters ? 'No products match your filters' : 'No products available',
+              hasFilters ? l10n.noMatchingProducts : l10n.noProducts,
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                color: AppColors.darkNavy,
-              ),
+                    color: AppColors.darkNavy,
+                  ),
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
               hasFilters
-                  ? 'Try adjusting your filters or clearing them'
-                  : widget.storeName != null 
-                      ? 'This store has no products yet'
+                  ? l10n.adjustFiltersMessage
+                  : widget.storeName != null
+                      ? l10n.storeNoProductsMessage
                       : widget.categoryName != null
-                          ? 'This category has no products yet'
-                          : 'Check back later for new products',
+                          ? l10n.categoryNoProductsMessage
+                          : l10n.checkBackProductsMessage,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppColors.gray,
-              ),
+                    color: AppColors.gray,
+                  ),
             ),
             if (hasFilters) ...[
               const SizedBox(height: AppSpacing.lg),
               AppButton(
-                text: 'Clear Filters',
+                text: l10n.clearFilters,
                 type: AppButtonType.primary,
                 onPressed: _viewModel.clearFilters,
               ),
@@ -290,7 +298,7 @@ class _ProductsPageState extends State<ProductsPage> {
       ),
     );
   }
-  
+
   Widget _buildProductsGrid() {
     return GridView.builder(
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -306,10 +314,10 @@ class _ProductsPageState extends State<ProductsPage> {
       },
     );
   }
-  
+
   Widget _buildProductCard(Product product) {
     final firstImage = product.images.isNotEmpty ? product.images.first : null;
-    
+
     return GestureDetector(
       onTap: () {
         Navigator.of(context).push(
@@ -355,9 +363,9 @@ class _ProductsPageState extends State<ProductsPage> {
             Text(
               product.name,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppColors.darkNavy,
-                fontWeight: FontWeight.w600,
-              ),
+                    color: AppColors.darkNavy,
+                    fontWeight: FontWeight.w600,
+                  ),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
@@ -365,8 +373,8 @@ class _ProductsPageState extends State<ProductsPage> {
             Text(
               product.storeName,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppColors.gray,
-              ),
+                    color: AppColors.gray,
+                  ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -377,9 +385,9 @@ class _ProductsPageState extends State<ProductsPage> {
                     ? '${product.lowestPrice.toStringAsFixed(2)} - ${product.highestPrice.toStringAsFixed(2)}'
                     : product.lowestPrice.toStringAsFixed(2),
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.bold,
-                ),
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.bold,
+                    ),
               ),
             ],
           ],

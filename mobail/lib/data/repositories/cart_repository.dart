@@ -64,6 +64,41 @@ class CartRepository {
     }
   }
   
+  // Single-Store Cart Rule: atomic "clear cart, then add this item" used
+  // when the customer confirms switching stores after a STORE_MISMATCH
+  // (see addItem above -- ApiException.code/data already carry that error
+  // through from ApiService._handleResponse, so no extra handling is
+  // needed there). Backed by POST /api/cart/switch-store, which performs
+  // the clear+add as one server-side transaction.
+  Future<void> switchStore({
+    required int productId,
+    required int variantId,
+    required int quantity,
+  }) async {
+    try {
+      final token = await _getToken();
+      if (token == null) {
+        throw Exception('Not authenticated');
+      }
+
+      final response = await _apiService.post(
+        ApiConfig.cartSwitchStore,
+        {
+          'product_id': productId,
+          'variant_id': variantId,
+          'quantity': quantity,
+        },
+        token: token,
+      );
+
+      if (response['success'] != true) {
+        throw Exception(response['message'] ?? 'Failed to switch store');
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   Future<void> updateItemQuantity({
     required int cartItemId,
     required int quantity,

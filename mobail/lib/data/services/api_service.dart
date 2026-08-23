@@ -126,6 +126,14 @@ class ApiService {
       message: body['message'] ?? 'An error occurred',
       statusCode: response.statusCode,
       errors: body['errors'] as List<dynamic>?,
+      // Backend attaches a machine-readable `code` (e.g. STORE_MISMATCH,
+      // MULTI_STORE_CART) plus optional structured `data` on some error
+      // responses (see backend/src/controllers/cartController.js /
+      // orderController.js). Both are additive/optional fields on existing
+      // error response shapes, so this does not change behavior for any
+      // existing error response that doesn't include them.
+      code: body['code'] as String?,
+      data: body['data'] as Map<String, dynamic>?,
     );
   }
   
@@ -150,13 +158,17 @@ class ApiException implements Exception {
   final String message;
   final int statusCode;
   final List<dynamic>? errors;
-  
+  final String? code;
+  final Map<String, dynamic>? data;
+
   ApiException({
     required this.message,
     required this.statusCode,
     this.errors,
+    this.code,
+    this.data,
   });
-  
+
   @override
   String toString() => message;
 }

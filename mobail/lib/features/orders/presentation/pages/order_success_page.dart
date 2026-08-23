@@ -1,19 +1,21 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/widgets/app_widgets.dart';
+import '../../../../l10n/generated/app_localizations.dart';
 
 class OrderSuccessPage extends StatelessWidget {
   final int orderId;
   final double total;
-  
+
   const OrderSuccessPage({
     super.key,
     required this.orderId,
     required this.total,
   });
-  
+
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       body: SafeArea(
         child: Padding(
@@ -28,7 +30,7 @@ class OrderSuccessPage extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.lg),
               Text(
-                'Order Placed Successfully!',
+                l10n.orderPlaced,
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                   color: AppColors.darkNavy,
                   fontWeight: FontWeight.bold,
@@ -40,17 +42,17 @@ class OrderSuccessPage extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildInfoRow(context, 'Order Number', '#$orderId'),
+                    _buildInfoRow(context, l10n.orderNumber, '#$orderId'),
                     const Divider(),
-                    _buildInfoRow(context, 'Payment Method', 'Cash on Delivery'),
+                    _buildInfoRow(context, l10n.paymentMethod, l10n.cashOnDelivery),
                     const Divider(),
-                    _buildInfoRow(context, 'Total', total.toStringAsFixed(2)),
+                    _buildInfoRow(context, l10n.total, total.toStringAsFixed(2)),
                   ],
                 ),
               ),
               const SizedBox(height: AppSpacing.lg),
               Text(
-                'Thank you for your order!',
+                l10n.thankYouOrder,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: AppColors.gray,
                 ),
@@ -58,7 +60,7 @@ class OrderSuccessPage extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.xl),
               AppButton(
-                text: 'View Order',
+                text: l10n.viewOrder,
                 type: AppButtonType.primary,
                 isFullWidth: true,
                 onPressed: () {
@@ -67,7 +69,7 @@ class OrderSuccessPage extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.sm),
               AppButton(
-                text: 'Continue Shopping',
+                text: l10n.continueShopping,
                 type: AppButtonType.secondary,
                 isFullWidth: true,
                 onPressed: () {
@@ -80,7 +82,7 @@ class OrderSuccessPage extends StatelessWidget {
       ),
     );
   }
-  
+
   Widget _buildInfoRow(BuildContext context, String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),

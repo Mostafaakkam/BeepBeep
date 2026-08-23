@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/widgets/app_widgets.dart';
+import '../../../../l10n/generated/app_localizations.dart';
 import '../viewmodels/home_viewmodel.dart';
 import 'profile_page.dart';
 import '../../../stores/presentation/pages/stores_page.dart';
@@ -15,7 +16,7 @@ import '../../../categories/presentation/viewmodels/category_viewmodel.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
-  
+
   @override
   State<HomePage> createState() => _HomePageState();
 }
@@ -27,7 +28,7 @@ class _HomePageState extends State<HomePage> {
   final AuthViewModel _authViewModel = AuthViewModel();
   final CategoryViewModel _categoryViewModel = CategoryViewModel();
   int _selectedIndex = 0;
-  
+
   @override
   void initState() {
     super.initState();
@@ -37,7 +38,7 @@ class _HomePageState extends State<HomePage> {
     _cartViewModel.loadCart();
     _categoryViewModel.loadCategories();
   }
-  
+
   @override
   void dispose() {
     _viewModel.dispose();
@@ -47,11 +48,11 @@ class _HomePageState extends State<HomePage> {
     _categoryViewModel.dispose();
     super.dispose();
   }
-  
+
   @override
   Widget build(BuildContext context) {
     Widget body;
-    
+
     switch (_selectedIndex) {
       case 0:
         body = _buildHomeContent();
@@ -71,7 +72,7 @@ class _HomePageState extends State<HomePage> {
       default:
         body = _buildHomeContent();
     }
-    
+
     return Scaffold(
       body: SafeArea(
         child: body,
@@ -79,7 +80,7 @@ class _HomePageState extends State<HomePage> {
       bottomNavigationBar: _buildBottomNavigation(),
     );
   }
-  
+
   Widget _buildHomeContent() {
     return Column(
       children: [
@@ -90,11 +91,12 @@ class _HomePageState extends State<HomePage> {
       ],
     );
   }
-  
+
   Widget _buildHeader() {
     return ListenableBuilder(
       listenable: _viewModel,
       builder: (context, child) {
+        final l10n = AppLocalizations.of(context);
         return Container(
           padding: const EdgeInsets.all(AppSpacing.md),
           decoration: BoxDecoration(
@@ -126,7 +128,7 @@ class _HomePageState extends State<HomePage> {
               ),
               const SizedBox(height: AppSpacing.md),
               Text(
-                'Hello, ${_viewModel.userName}!',
+                l10n.helloUser(_viewModel.userName),
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                   color: AppColors.darkNavy,
                   fontWeight: FontWeight.bold,
@@ -134,7 +136,7 @@ class _HomePageState extends State<HomePage> {
               ),
               const SizedBox(height: AppSpacing.xs),
               Text(
-                'Discover the best local stores in Aleppo',
+                l10n.discoverTagline,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: AppColors.gray,
                 ),
@@ -145,7 +147,7 @@ class _HomePageState extends State<HomePage> {
       },
     );
   }
-  
+
   Widget _buildContent() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -162,8 +164,9 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
-  
+
   Widget _buildSearchField() {
+    final l10n = AppLocalizations.of(context);
     return GestureDetector(
       onTap: () {
         Navigator.of(context).push(
@@ -190,7 +193,7 @@ class _HomePageState extends State<HomePage> {
             ),
             const SizedBox(width: AppSpacing.sm),
             Text(
-              'Search products, stores...',
+              l10n.searchPlaceholder,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: AppColors.gray,
               ),
@@ -200,17 +203,18 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
-  
+
   Widget _buildCategoriesSection() {
     return ListenableBuilder(
       listenable: _categoryViewModel,
       builder: (context, child) {
+        final l10n = AppLocalizations.of(context);
         if (_categoryViewModel.isLoading) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Categories',
+                l10n.categories,
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                   color: AppColors.darkNavy,
                 ),
@@ -227,13 +231,13 @@ class _HomePageState extends State<HomePage> {
             ],
           );
         }
-        
+
         if (_categoryViewModel.isError) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Categories',
+                l10n.categories,
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                   color: AppColors.darkNavy,
                 ),
@@ -243,7 +247,7 @@ class _HomePageState extends State<HomePage> {
                 height: 100,
                 child: Center(
                   child: AppButton(
-                    text: 'Retry',
+                    text: l10n.retry,
                     type: AppButtonType.secondary,
                     onPressed: _categoryViewModel.retry,
                   ),
@@ -252,11 +256,11 @@ class _HomePageState extends State<HomePage> {
             ],
           );
         }
-        
+
         if (!_categoryViewModel.hasCategories) {
           return const SizedBox.shrink();
         }
-        
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -264,7 +268,7 @@ class _HomePageState extends State<HomePage> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Categories',
+                  l10n.categories,
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                     color: AppColors.darkNavy,
                   ),
@@ -276,7 +280,7 @@ class _HomePageState extends State<HomePage> {
                   onPressed: () {
                     // Navigate to full categories page
                   },
-                  child: const Text('See All'),
+                  child: Text(l10n.seeAll),
                 ),
               ],
             ),
@@ -296,11 +300,11 @@ class _HomePageState extends State<HomePage> {
       },
     );
   }
-  
+
   Widget _buildCategoryItem(CategoryModel category) {
     return Container(
       width: 80,
-      margin: const EdgeInsets.only(right: AppSpacing.md),
+      margin: const EdgeInsetsDirectional.only(end: AppSpacing.md),
       child: Column(
         children: [
           InkWell(
@@ -342,11 +346,12 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
-  
+
   Widget _buildFeaturedSection() {
     return ListenableBuilder(
       listenable: _storeViewModel,
       builder: (context, child) {
+        final l10n = AppLocalizations.of(context);
         if (_storeViewModel.isLoading) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -355,13 +360,13 @@ class _HomePageState extends State<HomePage> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Featured Stores',
+                    l10n.featuredStores,
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                       color: AppColors.darkNavy,
                     ),
                   ),
                   Text(
-                    'See all',
+                    l10n.seeAllStores,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: AppColors.primary,
                     ),
@@ -377,7 +382,7 @@ class _HomePageState extends State<HomePage> {
             ],
           );
         }
-        
+
         if (_storeViewModel.isEmpty) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -386,13 +391,13 @@ class _HomePageState extends State<HomePage> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Featured Stores',
+                    l10n.featuredStores,
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                       color: AppColors.darkNavy,
                     ),
                   ),
                   Text(
-                    'See all',
+                    l10n.seeAllStores,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: AppColors.primary,
                     ),
@@ -422,14 +427,14 @@ class _HomePageState extends State<HomePage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'No stores available',
+                            l10n.noStores,
                             style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                               color: AppColors.darkNavy,
                             ),
                           ),
                           const SizedBox(height: AppSpacing.xs),
                           Text(
-                            'Check back later for new stores',
+                            l10n.noStoresSubtitle,
                             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               color: AppColors.gray,
                             ),
@@ -443,9 +448,9 @@ class _HomePageState extends State<HomePage> {
             ],
           );
         }
-        
+
         final featuredStores = _storeViewModel.stores.take(3).toList();
-        
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -453,7 +458,7 @@ class _HomePageState extends State<HomePage> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Featured Stores',
+                  l10n.featuredStores,
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                     color: AppColors.darkNavy,
                   ),
@@ -465,7 +470,7 @@ class _HomePageState extends State<HomePage> {
                     );
                   },
                   child: Text(
-                    'See all',
+                    l10n.seeAllStores,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: AppColors.primary,
                     ),
@@ -489,7 +494,7 @@ class _HomePageState extends State<HomePage> {
       },
     );
   }
-  
+
   Widget _buildFeaturedStoreCard(Store store) {
     return GestureDetector(
       onTap: () {
@@ -504,7 +509,7 @@ class _HomePageState extends State<HomePage> {
       },
       child: Container(
         width: 200,
-        margin: const EdgeInsets.only(right: AppSpacing.md),
+        margin: const EdgeInsetsDirectional.only(end: AppSpacing.md),
         child: AppCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -565,11 +570,12 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
-  
+
   Widget _buildBottomNavigation() {
     return ListenableBuilder(
       listenable: _cartViewModel,
       builder: (context, child) {
+        final l10n = AppLocalizations.of(context);
         return BottomNavigationBar(
           currentIndex: _selectedIndex,
           onTap: (index) {
@@ -581,20 +587,20 @@ class _HomePageState extends State<HomePage> {
           selectedItemColor: AppColors.primary,
           unselectedItemColor: AppColors.gray,
           items: [
-            const BottomNavigationBarItem(
-              icon: Icon(Icons.home_outlined),
-              activeIcon: Icon(Icons.home),
-              label: 'Home',
+            BottomNavigationBarItem(
+              icon: const Icon(Icons.home_outlined),
+              activeIcon: const Icon(Icons.home),
+              label: l10n.home,
             ),
-            const BottomNavigationBarItem(
-              icon: Icon(Icons.store_outlined),
-              activeIcon: Icon(Icons.store),
-              label: 'Stores',
+            BottomNavigationBarItem(
+              icon: const Icon(Icons.store_outlined),
+              activeIcon: const Icon(Icons.store),
+              label: l10n.stores,
             ),
-            const BottomNavigationBarItem(
-              icon: Icon(Icons.inventory_2_outlined),
-              activeIcon: Icon(Icons.inventory_2),
-              label: 'Products',
+            BottomNavigationBarItem(
+              icon: const Icon(Icons.inventory_2_outlined),
+              activeIcon: const Icon(Icons.inventory_2),
+              label: l10n.products,
             ),
             BottomNavigationBarItem(
               icon: _cartViewModel.itemCount > 0
@@ -603,27 +609,27 @@ class _HomePageState extends State<HomePage> {
               activeIcon: _cartViewModel.itemCount > 0
                   ? _buildCartBadge(_cartViewModel.itemCount, Icons.shopping_cart)
                   : const Icon(Icons.shopping_cart),
-              label: 'Cart',
+              label: l10n.cart,
             ),
-            const BottomNavigationBarItem(
-              icon: Icon(Icons.person_outlined),
-              activeIcon: Icon(Icons.person),
-              label: 'Profile',
+            BottomNavigationBarItem(
+              icon: const Icon(Icons.person_outlined),
+              activeIcon: const Icon(Icons.person),
+              label: l10n.profile,
             ),
           ],
         );
       },
     );
   }
-  
+
   Widget _buildCartBadge(int count, IconData icon) {
     return Stack(
       clipBehavior: Clip.none,
       children: [
         Icon(icon),
         if (count > 0)
-          Positioned(
-            right: -8,
+          PositionedDirectional(
+            end: -8,
             top: -8,
             child: Container(
               padding: const EdgeInsets.all(4),

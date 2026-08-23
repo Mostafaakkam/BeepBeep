@@ -24,6 +24,18 @@ const findByPhone = async (phone) => {
   return rows[0] || null;
 };
 
+// Added for Role-Based Authorization: lets authorization middleware re-fetch
+// a user's CURRENT role from the database rather than trusting the role
+// claim embedded in a (possibly stale, up to 7 days old) JWT. See
+// middlewares/authorizationMiddleware.js#requireRole.
+const findById = async (id) => {
+  const [rows] = await pool.execute(
+    'SELECT id, name, phone, email, role, created_at, updated_at FROM users WHERE id = ?',
+    [id]
+  );
+  return rows[0] || null;
+};
+
 const create = async (userData) => {
   const { name, phone, email, password, role } = userData;
   const [result] = await pool.execute(
@@ -43,5 +55,6 @@ module.exports = {
   findByEmail,
   findByEmailWithPassword,
   findByPhone,
+  findById,
   create
 };

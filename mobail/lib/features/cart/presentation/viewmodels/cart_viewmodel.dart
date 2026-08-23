@@ -1,6 +1,22 @@
 import 'package:flutter/foundation.dart';
 import '../../../../data/repositories/cart_repository.dart';
 import '../../../../data/models/models.dart';
+import '../../../../data/services/api_service.dart';
+
+// Single-Store Cart Rule: thrown by CartViewModel.addItem when the backend
+// rejects a cross-store add with STORE_MISMATCH (see
+// backend/src/controllers/cartController.js). Carries the same
+// currentStore/requestedStore info the backend returns in `data`, so the
+// UI (product_details_page.dart) can show a confirmation dialog naming
+// both stores. Kept separate from the generic error-message flow below so
+// existing add-to-cart error handling for every other failure is
+// unchanged.
+class StoreMismatchException implements Exception {
+  final Map<String, dynamic>? currentStore;
+  final Map<String, dynamic>? requestedStore;
+
+  StoreMismatchException({this.currentStore, this.requestedStore});
+}
 
 enum CartState {
   initial,
@@ -55,21 +71,68 @@ class CartViewModel extends ChangeNotifier {
     required int quantity,
   }) async {
     if (_isOperationInProgress) return;
-    
+
     _isOperationInProgress = true;
     notifyListeners();
-    
+
     try {
       await _repository.addItem(
         productId: productId,
         variantId: variantId,
         quantity: quantity,
       );
-      
+
+      // Reload cart to get updated state
+      await loadCart();
+    } on ApiException catch (e) {
+      // Single-Store Cart Rule: STORE_MISMATCH is not a generic failure --
+      // the caller (product_details_page.dart) needs the current/requested
+      // store info to show a confirmation dialog, so it is rethrown as a
+      // typed exception instead of being folded into _errorMessage like
+      // every other error below. The cart itself is left untouched by the
+      // backend on this rejection, so there is nothing to reload.
+      if (e.code == 'STORE_MISMATCH') {
+        throw StoreMismatchException(
+          currentStore: e.data?['currentStore'] as Map<String, dynamic>?,
+          requestedStore: e.data?['requestedStore'] as Map<String, dynamic>?,
+        );
+      }
+      _errorMessage = 'Failed to add item to cart. Please try again.';
+      notifyListeners();
+    } catch (e) {
+      _errorMessage = 'Failed to add item to cart. Please try again.';
+      notifyListeners();
+    } finally {
+      _isOperationInProgress = false;
+      notifyListeners();
+    }
+  }
+
+  // Single-Store Cart Rule: atomic clear-and-add used when the customer
+  // confirms "clear cart and switch stores" after a StoreMismatchException.
+  // Mirrors addItem's loading/error handling; does not itself catch
+  // STORE_MISMATCH since a same-item switch cannot mismatch against itself.
+  Future<void> switchStore({
+    required int productId,
+    required int variantId,
+    required int quantity,
+  }) async {
+    if (_isOperationInProgress) return;
+
+    _isOperationInProgress = true;
+    notifyListeners();
+
+    try {
+      await _repository.switchStore(
+        productId: productId,
+        variantId: variantId,
+        quantity: quantity,
+      );
+
       // Reload cart to get updated state
       await loadCart();
     } catch (e) {
-      _errorMessage = 'Failed to add item to cart. Please try again.';
+      _errorMessage = 'Failed to switch store. Please try again.';
       notifyListeners();
     } finally {
       _isOperationInProgress = false;

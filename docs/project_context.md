@@ -71,6 +71,10 @@ Beep Beep is a mobile marketplace application designed for local commerce, start
 - Product filter UI with bottom sheet and filter controls
 - Filter summary chips and clear functionality
 - Combined filter support (store, category, price, availability, sorting)
+- App-wide English/Arabic localization with RTL/LTR support and a persisted language selector
+- Product Reviews & Ratings API with purchase-verified eligibility and ownership enforcement
+- Flutter review submission/edit UI with rating summary and review list on Product Details
+- Product average rating and review count computed on read and exposed on Product Details
 
 ### Planned (Not Yet Implemented)
 - Order management dashboard for store owners
@@ -204,14 +208,17 @@ The Flutter app follows MVVM architecture:
 **users**
 - Columns: id, name, phone, email, password, role, created_at, updated_at
 - Primary Key: id
-- Relationships: One user can have multiple addresses, one shopping cart, many orders, many favorite products
-- Currently used by: authentication system
+- `role` values: `customer` (default), `store_owner`, `admin`. Role is never trusted from the client or from a JWT claim alone — every authorization check re-fetches the current role from this table (see §7, Role-Based Authorization).
+- Relationships: One user can have multiple addresses, one shopping cart, many orders, many favorite products; a `store_owner` may own zero or more stores (see `stores.owner_id` below)
+- Currently used by: authentication system, role-based authorization
 
-**stores**
-- Columns: id, name, description, phone, address, logo, cover_image, status, created_at, updated_at
+**stores** *(owner_id added — Store Ownership)*
+- Columns: id, `owner_id` (nullable), name, description, phone, address, logo, cover_image, status, created_at, updated_at
 - Primary Key: id
-- Relationships: One store contains many products
-- Status: Schema defined, not yet used
+- Foreign Key: `owner_id` → `users(id)`, nullable — a store can exist with no owner yet; added by `database/migrations/002_add_roles_ownership_single_store.sql` (additive, nullable)
+- Relationships: One store contains many products; belongs to **at most one** `store_owner` (never more — no many-to-many ownership); an owner may own more than one store
+- Index: `idx_stores_owner_id`
+- Status: In use (products, ordering, browsing); ownership resolution now used by `requireStoreOwnership` middleware
 
 **categories**
 - Purpose: Store product categories with parent-child support
@@ -235,23 +242,28 @@ The Flutter app follows MVVM architecture:
 - Relationships: Belongs to one product
 - Status: Schema defined, not yet used
 
-**carts**
+**carts** *(store_id added — Single-Store Cart Rule)*
 - Purpose: Store user shopping carts
-- Relationships: Belongs to one user, contains many cart items
-- Status: Schema defined, not yet used
+- Columns include: id, user_id, `store_id` (nullable)
+- Foreign Key: `store_id` → `stores(id)`, nullable — `NULL` while the cart is empty; set server-side to the store of the **first** item added, from then on every add must be from that same store or the API rejects it with `STORE_MISMATCH` (see §6). Reset back to `NULL` whenever the cart becomes empty (item removed/quantity to 0/cart cleared), so the next add is free to pick a new store.
+- Index: `idx_carts_store_id`
+- Relationships: Belongs to one user, contains many cart items; tied to **exactly one** store at a time (Single-Store Cart Rule)
+- Status: In use
 
 **cart_items**
 - Purpose: Store products in shopping cart
 - Relationships: Belongs to one cart, one product variant
-- Status: Schema defined, not yet used
+- Status: In use
 
-**orders**
-- Columns: id, user_id, status, total_price, created_at, updated_at
+**orders** *(store_id added — Single-Store Order Rule)*
+- Columns: id, user_id, `store_id` (nullable), status, total_price, created_at, updated_at
 - Primary Key: id
-- Foreign Key: user_id
+- Foreign Keys: user_id, `store_id` → `stores(id)` (nullable — `NULL` on legacy orders created before this migration; new orders always get it populated, see below)
+- `store_id` is derived and validated **server-side only**, from the cart's actual items at the moment of checkout — it is never accepted from the client. A cart that somehow contains items from more than one store (bypassing the cart-level `STORE_MISMATCH` check) is rejected at checkout with `MULTI_STORE_CART` instead of being allowed through.
+- Index: `idx_orders_store_id`
 - Status values: pending, confirmed, shipping, delivered, cancelled
-- Relationships: Belongs to one user, contains many order items
-- Status: Schema defined, not yet used
+- Relationships: Belongs to one user, contains many order items; belongs to **exactly one** store (Single-Store Order Rule — "one order must contain products from one store only")
+- Status: In use
 
 **order_items**
 - Purpose: Store snapshot of purchased products
@@ -267,6 +279,17 @@ The Flutter app follows MVVM architecture:
 - Purpose: Store favorite products for users
 - Relationships: Belongs to one user, one product
 - Status: Schema defined, not yet used
+
+**reviews** *(new — Product Reviews & Ratings)*
+- Columns: id, product_id, user_id, rating (TINYINT, 1-5), comment (TEXT, nullable), created_at, updated_at
+- Primary Key: id
+- Foreign Keys: product_id → products(id) ON DELETE CASCADE, user_id → users(id) ON DELETE CASCADE
+- Constraints: UNIQUE(user_id, product_id) — one review per user per product; CHECK(rating BETWEEN 1 AND 5)
+- Relationships: Belongs to one product, one user
+- Indexes: product_id, user_id
+- Migration file: `database/migrations/001_create_reviews_table.sql` (additive only; no existing tables changed)
+- Note: average rating and review count are NOT stored as columns anywhere — they are computed on read via `AVG(rating)`/`COUNT(*)` over this table (see `reviewRepository.getRatingSummary()` and the extended `productRepository.findById()`)
+- Status: Implemented and in use
 
 ### Important Constraints
 - Integer primary keys
@@ -404,6 +427,87 @@ Complete database schema documentation is available in: `docs/database.md`
   ```
 - Status Codes: 200 (success), 500 (server error)
 - Implementation Notes: All filters are combinable, variant-based price/stock filtering, parameterized SQL, whitelisted sorting
+- **Note (Reviews & Ratings):** the response for `GET /api/products/:id` now also includes `average_rating` (number, 0 if no reviews) and `review_count` (integer), computed on read from the `reviews` table.
+
+**GET /api/reviews/product/:productId**
+- Purpose: Retrieve a product's reviews and rating summary
+- Authentication: None required (public endpoint)
+- Response Structure (200):
+  ```json
+  {
+    "success": true,
+    "message": "Reviews retrieved successfully",
+    "data": {
+      "reviews": [
+        { "id": 1, "product_id": 1, "user_id": 2, "rating": 5, "comment": "Great product!", "created_at": "...", "updated_at": "...", "user_name": "Sara Yousef" }
+      ],
+      "summary": { "reviewCount": 1, "averageRating": 5 }
+    }
+  }
+  ```
+- Status Codes: 200 (success), 500 (server error)
+
+**GET /api/reviews/product/:productId/eligibility**
+- Purpose: Check whether the authenticated user can review this product (purchased via a delivered order, and hasn't already reviewed it)
+- Authentication: Required (JWT Bearer token)
+- Response Structure (200): `{ "success": true, "data": { "hasPurchased": true, "hasReviewed": false, "canReview": true, "existingReview": null } }`
+- Status Codes: 200 (success), 404 (product not found), 500 (server error)
+
+**POST /api/reviews/product/:productId**
+- Purpose: Submit a new review for a product
+- Authentication: Required (JWT Bearer token)
+- Request Body: `{ "rating": 5, "comment": "Optional text" }`
+- Business rules enforced: rating must be an integer 1-5; comment optional, max 1000 chars; product must exist; user must not have already reviewed this product; user must have a `delivered` order containing this product
+- Status Codes: 201 (success), 400 (invalid rating/comment), 403 (purchase required), 404 (product not found), 409 (already reviewed), 500 (server error)
+
+**PATCH /api/reviews/:id**
+- Purpose: Edit the authenticated user's own review
+- Authentication: Required (JWT Bearer token); ownership enforced (`WHERE id = ? AND user_id = ?`)
+- Request Body: `{ "rating": 4, "comment": "Updated text" }`
+- Status Codes: 200 (success), 400 (invalid rating/comment), 404 (review not found or not owned by this user), 500 (server error)
+
+**DELETE /api/reviews/:id**
+- Purpose: Delete the authenticated user's own review
+- Authentication: Required (JWT Bearer token); ownership enforced (`WHERE id = ? AND user_id = ?`)
+- Status Codes: 200 (success), 404 (review not found or not owned by this user), 500 (server error)
+
+### Cart, Orders & Store Ownership API Changes *(new — Role System, Store Ownership & Single-Store Order Rule)*
+
+The pre-existing cart (`/api/cart`) and orders (`/api/orders`) endpoints are unchanged in shape except for the additions below (existing fields/behavior preserved):
+
+**POST /api/cart/items** (existing endpoint — behavior change)
+- New rejection case: if the cart already contains an item from a different store, the add is rejected instead of mixing stores.
+- Response Structure (409):
+  ```json
+  {
+    "success": false,
+    "message": "Your cart contains items from another store",
+    "code": "STORE_MISMATCH",
+    "data": {
+      "currentStore": { "id": 1, "name": "..." },
+      "requestedStore": { "id": 2, "name": "..." }
+    }
+  }
+  ```
+
+**POST /api/cart/switch-store** *(new)*
+- Purpose: Atomically clear the cart and add the given item, for when the customer confirms switching stores after a `STORE_MISMATCH`
+- Authentication: Required (JWT Bearer token)
+- Request Body: `{ "product_id": 5, "variant_id": 12, "quantity": 1 }` (same shape as `POST /api/cart/items`)
+- Implementation: single DB transaction (delete all cart_items → insert new item → update cart's `store_id`) — never leaves the cart half-cleared on failure
+- Status Codes: 200 (success), 400/404 (invalid product/variant), 401 (unauthenticated), 500 (server error)
+
+**POST /api/orders** (existing checkout endpoint — behavior change)
+- `store_id` is now derived server-side from the cart's items and stamped onto the created order; never accepted from the client
+- New rejection case (defensive, independent of the cart-level `STORE_MISMATCH` check above): if the cart somehow contains items from more than one store at checkout time, the order is not created.
+- Response Structure (400): `{ "success": false, "message": "Cart contains products from multiple stores", "code": "MULTI_STORE_CART" }`
+
+**GET /api/stores/:storeId/orders** *(new)*
+- Purpose: List orders placed against one store, for the store owner
+- Authentication: Required (JWT Bearer token); Authorization: `requireRole('store_owner', 'admin')` then `requireStoreOwnership('storeId')` (admin bypasses ownership)
+- Query Parameters: `status` (optional) — filter by order status
+- Status Codes: 200 (success), 401 (unauthenticated), 403 (not this store's owner and not admin, or the store has no owner), 500 (server error)
+- Note: this is a minimal, deliberately-scoped endpoint added to give the ownership middleware a real, testable mounting point — it is **not** the Store Owner Dashboard, which remains unbuilt (no product-management or dashboard UI exists yet)
 
 ## 7. Authentication & Security
 
@@ -458,6 +562,16 @@ Complete database schema documentation is available in: `docs/database.md`
 - .env files protected by .gitignore
 - No password/hash exposure in API responses
 - Centralized error handling
+
+**Role-Based Authorization** *(new — Role System, Store Ownership & Single-Store Order Rule)*
+- Roles: `customer` (default), `store_owner`, `admin` — stored on `users.role`
+- Middleware: `backend/src/middlewares/authorizationMiddleware.js`, applied after `authenticate`:
+  - `requireRole(...allowedRoles)` — re-fetches the user's **current** role from the database (via `userRepository.findById`) rather than trusting the JWT's `role` claim, and refreshes `req.user.role`. This closes a stale-token privilege window: a role change (promotion or demotion) in the database takes effect on the very next request made with an already-issued token, without waiting for the token to expire or be reissued. Responds 403 if the (fresh) role is not in `allowedRoles`.
+  - `requireStoreOwnership(paramName = 'storeId')` / `requireProductOwnership(paramName = 'id')` — resolve the target store/product from the route param, look up its owner server-side (`storeRepository.findOwnerId` / `productRepository.findStoreIdById`, both distinct from the public-facing `findById` methods so `owner_id` is never exposed on public endpoints), and allow the request only if the authenticated user is that owner, **or** has the `admin` role (ownership bypass, for future admin functionality). Otherwise 403. On success, attaches the resolved resource (`req.store` / `req.product`) for the controller to use.
+  - Client-supplied owner/store/user IDs in the request body are never trusted for authorization — ownership is always resolved from the database via the route param, independent of anything in the request body.
+  - `requireProductOwnership` is implemented and unit-testable but not yet mounted on any route — there are no product-management endpoints in scope yet (that's part of the future Store Owner Dashboard).
+  - Applied today to `GET /api/stores/:storeId/orders` (`requireRole('store_owner', 'admin')` then `requireStoreOwnership('storeId')`) — see §6.
+- Existing customer authentication behavior (register/login/JWT/`authenticate` middleware) is unchanged by this feature.
 
 **Known Limitations**
 - No refresh token implementation
@@ -546,6 +660,35 @@ Complete database schema documentation is available in: `docs/database.md`
   - `mobail/lib/core/widgets/app_text_field.dart`
   - `mobail/lib/core/widgets/app_card.dart`
 - **Implementation Notes**: Complete design system with reusable components ready for feature implementation
+
+### Localization
+- **Status**: ✅ Completed (implemented and statically verified; on-device `flutter analyze`/build not run this session — see §12)
+- **Related Files**:
+  - `mobail/l10n.yaml` — gen_l10n configuration
+  - `mobail/lib/l10n/app_en.arb` — English strings (template/default locale, 252 keys)
+  - `mobail/lib/l10n/app_ar.arb` — Arabic strings (252 keys, full parity with English)
+  - `mobail/lib/l10n/generated/app_localizations.dart` — generated by `flutter gen-l10n` (not committed; produced by `flutter pub get`)
+  - `mobail/lib/core/locale/locale_provider.dart` — `LocaleProvider` (ChangeNotifier) + `SharedPreferences` persistence
+  - `mobail/lib/main.dart` — wires `locale`, `supportedLocales`, `localizationsDelegates` into `MaterialApp`
+  - `mobail/lib/core/utils/validators.dart` — validators take `AppLocalizations` for localized error text
+  - `mobail/lib/features/auth/presentation/viewmodels/login_viewmodel.dart`, `register_viewmodel.dart` — `setLocalizations()` bridge pattern (ViewModel stays free of `BuildContext`)
+  - `mobail/lib/features/home/presentation/pages/profile_page.dart` — language selector (English/Arabic) under Profile
+  - Every page under `mobail/lib/features/*/presentation/pages/` — hardcoded strings replaced with `AppLocalizations.of(context)!.<key>` calls
+- **Implementation Notes**: Uses Flutter's standard `flutter_localizations` + ARB/gen_l10n toolchain (no custom/hand-rolled localization system, no unnecessary dependencies beyond `flutter_localizations` + `intl`, both from the Flutter SDK). English is the default language; Arabic is fully supported with automatic RTL layout (Flutter derives `Directionality` from the active `Locale`). Manual RTL-correctness fixes applied where needed: `` on custom back-arrow/chevron icons, and `EdgeInsetsDirectional`/`PositionedDirectional` in place of directionally-hardcoded `EdgeInsets.only(right:)`/`Positioned(right:)` for horizontal-list spacing and badges. Language choice persists across restarts via `SharedPreferences`. MVVM architecture and Design System reused throughout; no UI redesign, no backend/API/database changes.
+- **Correction (2026-08-22, during Reviews & Ratings work):** `product_details_page.dart` was found to still have hardcoded English strings and to never call `AuthViewModel.checkAuthStatus()` (so `isAuthenticated` was always `false`, silently breaking both the favorite-button state and, now, review eligibility). Both were fixed while adding the review UI to that same page — see the Reviews entry below.
+
+### Reviews
+- **Status**: ✅ Completed (backend verified end-to-end in a local sandbox MySQL instance; Flutter side statically verified only — see §12)
+- **Related Files**:
+  - `mobail/lib/data/models/review_model.dart` — `Review` and `RatingSummary` models
+  - `mobail/lib/data/repositories/review_repository.dart` — API communication (list/eligibility/create/update/delete)
+  - `mobail/lib/features/reviews/presentation/viewmodels/review_viewmodel.dart` — `ReviewViewModel` (ChangeNotifier) for review list, eligibility, and submit/edit/delete state
+  - `mobail/lib/features/reviews/presentation/widgets/review_form_sheet.dart` — shared bottom-sheet form (star picker + optional comment) used for both submitting and editing a review
+  - `mobail/lib/features/products/presentation/pages/product_details_page.dart` — extended with rating summary, review list, and the write/edit/delete review flow
+  - `mobail/lib/data/models/product_model.dart` — extended with `averageRating`/`reviewCount`
+  - `mobail/lib/config/api_config.dart` — extended with the `/reviews` endpoint base path
+  - `mobail/lib/l10n/app_en.arb`, `mobail/lib/l10n/app_ar.arb` — review-related strings added (key parity maintained)
+- **Implementation Notes**: Authenticated users who purchased a product via a `delivered` order can leave a 1-5 star rating with an optional comment; users can edit/delete their own review; one review per user per product (service-layer check + database `UNIQUE` constraint). Rating summary (average + count) and the review list are shown on Product Details, along with a context-appropriate action: "Write a Review" button, the user's own review with edit/delete icons, a purchase-required message, or a login prompt — depending on auth/purchase/review state. Star rating picker and star displays are plain `Icon(Icons.star / Icons.star_border)` rows (no new dependency). MVVM architecture and Design System reused throughout (`AppCard`, `AppButton`, `AppTextField`, `AppColors`, `AppSpacing`, `AppBorderRadius`); fully localized and RTL-safe (uses `EdgeInsetsDirectional` for the image-thumbnail row already on that page).
 
 ## 9. Design System
 
@@ -639,7 +782,8 @@ backend/
 │   │   ├── searchController.js  # Search request handling
 │   │   ├── favoriteController.js # Favorite request handling
 │   │   ├── addressController.js # Address request handling
-│   │   └── categoryController.js # Category request handling
+│   │   ├── categoryController.js # Category request handling
+│   │   └── reviewController.js  # Review request handling
 │   ├── middlewares/
 │   │   └── authMiddleware.js    # JWT authentication middleware
 │   ├── repositories/
@@ -651,7 +795,8 @@ backend/
 │   │   ├── searchRepository.js  # Search data access layer
 │   │   ├── favoriteRepository.js # Favorite data access layer
 │   │   ├── addressRepository.js # Address data access layer
-│   │   └── categoryRepository.js # Category data access layer
+│   │   ├── categoryRepository.js # Category data access layer
+│   │   └── reviewRepository.js  # Review data access layer
 │   ├── routes/
 │   │   ├── authRoutes.js        # Authentication routes
 │   │   ├── healthRoutes.js      # Health check routes
@@ -662,7 +807,8 @@ backend/
 │   │   ├── searchRoutes.js      # Search routes
 │   │   ├── favoriteRoutes.js    # Favorite routes
 │   │   ├── addressRoutes.js     # Address routes
-│   │   └── categoryRoutes.js    # Category routes
+│   │   ├── categoryRoutes.js    # Category routes
+│   │   └── reviewRoutes.js      # Review routes
 │   ├── services/
 │   │   ├── authService.js       # Authentication business logic
 │   │   ├── storeService.js      # Store business logic
@@ -672,7 +818,8 @@ backend/
 │   │   ├── searchService.js     # Search business logic
 │   │   ├── favoriteService.js   # Favorite business logic
 │   │   ├── addressService.js    # Address business logic
-│   │   └── categoryService.js   # Category business logic
+│   │   ├── categoryService.js   # Category business logic
+│   │   └── reviewService.js     # Review business logic
 │   │   └── orderService.js      # Order business logic
 │   ├── utils/                   # Utility functions (empty, ready for use)
 │   ├── validators/              # Input validators (empty, ready for use)
@@ -705,8 +852,15 @@ mobail/
 │   │   │   ├── app_text_field.dart       # Reusable text field component
 │   │   │   ├── app_card.dart             # Reusable card component
 │   │   │   └── app_widgets.dart          # Barrel export
-│   │   └── utils/
-│   │       └── validators.dart            # Input validation utilities
+│   │   ├── utils/
+│   │   │   └── validators.dart            # Input validation utilities (localized)
+│   │   └── locale/
+│   │       └── locale_provider.dart       # LocaleProvider (ChangeNotifier) + SharedPreferences persistence
+│   ├── l10n/
+│   │   ├── app_en.arb                     # English strings (template/default locale)
+│   │   ├── app_ar.arb                     # Arabic strings
+│   │   └── generated/
+│   │       └── app_localizations.dart     # gen_l10n output (generated, not committed)
 │   ├── data/
 │   │   ├── models/
 │   │   │   ├── register_request.dart     # Registration request model
@@ -724,6 +878,7 @@ mobail/
 │   │   │   ├── address_model.dart         # Address model
 │   │   │   ├── category_model.dart        # Category model
 │   │   │   ├── product_filter.dart        # Product filter model
+│   │   │   ├── review_model.dart          # Review + RatingSummary models
 │   │   │   └── models.dart               # Barrel export
 │   │   ├── repositories/
 │   │   │   ├── auth_repository.dart      # Authentication repository
@@ -733,7 +888,8 @@ mobail/
 │   │   │   ├── order_repository.dart      # Order repository
 │   │   │   ├── favorite_repository.dart   # Favorite repository
 │   │   │   ├── address_repository.dart    # Address repository
-│   │   │   └── category_repository.dart   # Category repository
+│   │   │   ├── category_repository.dart   # Category repository
+│   │   │   └── review_repository.dart     # Review repository
 │   │   └── services/
 │   │       ├── api_service.dart           # HTTP API service
 │   │       └── token_storage.dart         # JWT token storage
@@ -810,6 +966,12 @@ mobail/
 │           │   └── categories_page.dart        # Categories screen
 │           └── viewmodels/
 │               └── category_viewmodel.dart     # Category ViewModel
+│   └── reviews/
+│       └── presentation/
+│           ├── widgets/
+│           │   └── review_form_sheet.dart      # Submit/edit review bottom sheet
+│           └── viewmodels/
+│               └── review_viewmodel.dart       # Review ViewModel
 │   ├── config/
 │   │   └── api_config.dart               # API configuration
 │   ├── design_system_demo.dart           # Design system demo (for reference)
@@ -817,6 +979,7 @@ mobail/
 ├── test/
 │   └── widget_test.dart                 # Widget tests
 ├── pubspec.yaml                          # Flutter dependencies
+├── l10n.yaml                             # gen_l10n configuration (arb-dir, output-dir, etc.)
 └── analysis_options.yaml                # Dart analysis options
 ```
 
@@ -828,6 +991,13 @@ docs/
 │   ├── beep_beep_design.png       # Original design reference
 │   └── beep_beep_design_system.png # Design system reference
 └── project_context.md             # This file - project context
+```
+
+### Database Migrations (new)
+```
+database/
+└── migrations/
+    └── 001_create_reviews_table.sql  # Adds the `reviews` table (run manually; no automated runner)
 ```
 
 ## 11. Git History / Milestones
@@ -898,6 +1068,8 @@ docs/
 - **Filter Summary Chips**: Visual filter summary with individual removal capability
 - **Combined Filters**: Support for multiple simultaneous filters (store, category, price, stock, sort)
 - **Empty Filtered States**: Clear empty state with Clear Filters action for filtered results
+- **Localization Implemented**: App-wide English/Arabic localization via `flutter_localizations` + ARB/gen_l10n, RTL/LTR support, language selector with persistence — infrastructure step completed ahead of Product Reviews & Ratings
+- **Product Reviews & Ratings Implemented**: New `reviews` table + migration, review API (create/edit/delete/list/eligibility) with purchase verification and ownership enforcement, product average rating and review count computed on read, Flutter rating summary + review list + submit/edit UI on Product Details, fully localized — backend verified end-to-end in a local sandbox MySQL instance
 
 ## 12. Current Status
 
@@ -912,6 +1084,7 @@ docs/
 - **Favorites API**: ✅ Completed
 - **Address API**: ✅ Completed
 - **Category API**: ✅ Completed
+- **Review API**: ✅ Completed (create/edit/delete/list/eligibility, purchase-verified, ownership-enforced) — verified end-to-end against a local sandbox MySQL instance (seeded data, real HTTP requests via curl); see §14/report for details
 - **Admin Features**: ❌ Not started
 
 ### Flutter
@@ -926,10 +1099,12 @@ docs/
 - **Search Screen**: ✅ Completed
 - **Favorites Screen**: ✅ Completed
 - **Addresses Screen**: ✅ Completed
+- **Reviews (Product Details integration)**: ✅ Implemented (rating summary, review list, write/edit/delete flow); statically verified only — see caveat below
 - **MVVM Architecture**: ✅ Completed (implemented for all features)
 - **API Service Layer**: ✅ Completed
 - **State Management**: ✅ Completed (ChangeNotifier pattern)
 - **JWT Token Storage**: ✅ Completed (SharedPreferences)
+- **Localization (English/Arabic)**: ✅ Implemented, statically verified (ARB key parity, no leftover hardcoded strings; 270 keys, full EN/AR parity confirmed programmatically after adding review-related keys). ⚠️ `flutter analyze`/`flutter pub get`/on-device build not run this session — Flutter/Dart SDK download was blocked by the cloud sandbox's network policy (confirmed again this session: `pub.dev`/`storage.googleapis.com` both return a blocked CONNECT tunnel) and no local device shell was available. Run these locally to confirm before treating the Flutter side as fully verified.
 
 ### Database
 - **Initial Schema**: ✅ Completed
@@ -948,7 +1123,6 @@ docs/
 
 ### Immediate Next Steps
 - Implement advanced search with filters
-- Add product reviews and ratings
 - Implement user profile management (beyond logout and addresses)
 - Add notification system for order updates
 - Implement product recommendations
@@ -970,7 +1144,6 @@ docs/
 - Payment processing
 - Multi-city expansion
 - Advanced search and filtering
-- Product reviews and ratings
 - Notifications system
 - Coupon/discount system
 
@@ -1069,4 +1242,4 @@ docs/
 
 **Document Maintenance**: This file must be updated after every significant project change to maintain its accuracy as the primary context document for future development sessions.
 
-**Last Updated**: 2026-08-22 (Product Filtering & Sorting implementation completed)
+**Last Updated**: 2026-08-22 (Product Reviews & Ratings implementation completed)

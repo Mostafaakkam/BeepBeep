@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/widgets/app_widgets.dart';
+import '../../../../l10n/generated/app_localizations.dart';
 import '../viewmodels/search_viewmodel.dart';
 import '../../../products/presentation/pages/product_details_page.dart';
 import '../../../products/presentation/pages/products_page.dart';
 
 class SearchPage extends StatefulWidget {
   const SearchPage({super.key});
-  
+
   @override
   State<SearchPage> createState() => _SearchPageState();
 }
@@ -16,13 +17,13 @@ class _SearchPageState extends State<SearchPage> {
   final SearchViewModel _viewModel = SearchViewModel();
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
-  
+
   @override
   void initState() {
     super.initState();
     _searchFocusNode.requestFocus();
   }
-  
+
   @override
   void dispose() {
     _viewModel.dispose();
@@ -30,7 +31,7 @@ class _SearchPageState extends State<SearchPage> {
     _searchFocusNode.dispose();
     super.dispose();
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -46,8 +47,9 @@ class _SearchPageState extends State<SearchPage> {
       ),
     );
   }
-  
+
   Widget _buildSearchHeader() {
+    final l10n = AppLocalizations.of(context);
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
@@ -63,7 +65,10 @@ class _SearchPageState extends State<SearchPage> {
       child: Row(
         children: [
           IconButton(
-            icon: const Icon(Icons.arrow_back),
+            icon: const Icon(
+              Icons.arrow_back,
+            ),
+            tooltip: l10n.goBack,
             onPressed: () => Navigator.of(context).pop(),
           ),
           Expanded(
@@ -76,7 +81,7 @@ class _SearchPageState extends State<SearchPage> {
                 controller: _searchController,
                 focusNode: _searchFocusNode,
                 decoration: InputDecoration(
-                  hintText: 'Search products and stores...',
+                  hintText: l10n.searchHint,
                   hintStyle: const TextStyle(
                     color: AppColors.gray,
                   ),
@@ -106,7 +111,7 @@ class _SearchPageState extends State<SearchPage> {
       ),
     );
   }
-  
+
   Widget _buildContent() {
     return ListenableBuilder(
       listenable: _viewModel,
@@ -114,36 +119,37 @@ class _SearchPageState extends State<SearchPage> {
         if (_viewModel.isLoading) {
           return _buildLoadingState();
         }
-        
+
         if (_viewModel.errorMessage != null) {
           return _buildErrorState();
         }
-        
+
         if (!_viewModel.hasQuery) {
           return _buildInitialState();
         }
-        
+
         if (!_viewModel.hasResults) {
           return _buildNoResultsState();
         }
-        
+
         return _buildResults();
       },
     );
   }
-  
+
   Widget _buildLoadingState() {
-    return const Center(
+    final l10n = AppLocalizations.of(context);
+    return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          CircularProgressIndicator(
+          const CircularProgressIndicator(
             color: AppColors.primary,
           ),
-          SizedBox(height: AppSpacing.md),
+          const SizedBox(height: AppSpacing.md),
           Text(
-            'Searching...',
-            style: TextStyle(
+            l10n.searching,
+            style: const TextStyle(
               color: AppColors.gray,
             ),
           ),
@@ -151,8 +157,9 @@ class _SearchPageState extends State<SearchPage> {
       ),
     );
   }
-  
+
   Widget _buildErrorState() {
+    final l10n = AppLocalizations.of(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
@@ -166,15 +173,15 @@ class _SearchPageState extends State<SearchPage> {
             ),
             const SizedBox(height: AppSpacing.md),
             Text(
-              _viewModel.errorMessage ?? 'Search failed',
+              _viewModel.errorMessage ?? l10n.searchFailed,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppColors.gray,
-              ),
+                    color: AppColors.gray,
+                  ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: AppSpacing.lg),
             AppButton(
-              text: 'Retry',
+              text: l10n.retry,
               type: AppButtonType.primary,
               onPressed: _viewModel.retry,
             ),
@@ -183,8 +190,9 @@ class _SearchPageState extends State<SearchPage> {
       ),
     );
   }
-  
+
   Widget _buildInitialState() {
+    final l10n = AppLocalizations.of(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
@@ -198,25 +206,26 @@ class _SearchPageState extends State<SearchPage> {
             ),
             const SizedBox(height: AppSpacing.md),
             Text(
-              'Search for products and stores',
+              l10n.searchPrompt,
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                color: AppColors.darkNavy,
-              ),
+                    color: AppColors.darkNavy,
+                  ),
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
-              'Enter at least 2 characters to search',
+              l10n.searchMinChars,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppColors.gray,
-              ),
+                    color: AppColors.gray,
+                  ),
             ),
           ],
         ),
       ),
     );
   }
-  
+
   Widget _buildNoResultsState() {
+    final l10n = AppLocalizations.of(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
@@ -230,32 +239,33 @@ class _SearchPageState extends State<SearchPage> {
             ),
             const SizedBox(height: AppSpacing.md),
             Text(
-              'No results found',
+              l10n.noResults,
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                color: AppColors.darkNavy,
-              ),
+                    color: AppColors.darkNavy,
+                  ),
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
-              'Try different keywords',
+              l10n.tryDifferentKeywords,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppColors.gray,
-              ),
+                    color: AppColors.gray,
+                  ),
             ),
           ],
         ),
       ),
     );
   }
-  
+
   Widget _buildResults() {
+    final l10n = AppLocalizations.of(context);
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppSpacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (_viewModel.products.isNotEmpty) ...[
-            _buildSectionHeader('Products'),
+            _buildSectionHeader(l10n.products),
             const SizedBox(height: AppSpacing.md),
             ..._viewModel.products.map((product) {
               return _buildProductResult(product);
@@ -263,7 +273,7 @@ class _SearchPageState extends State<SearchPage> {
             const SizedBox(height: AppSpacing.lg),
           ],
           if (_viewModel.stores.isNotEmpty) ...[
-            _buildSectionHeader('Stores'),
+            _buildSectionHeader(l10n.stores),
             const SizedBox(height: AppSpacing.md),
             ..._viewModel.stores.map((store) {
               return _buildStoreResult(store);
@@ -273,17 +283,17 @@ class _SearchPageState extends State<SearchPage> {
       ),
     );
   }
-  
+
   Widget _buildSectionHeader(String title) {
     return Text(
       title,
       style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-        color: AppColors.darkNavy,
-        fontWeight: FontWeight.bold,
-      ),
+            color: AppColors.darkNavy,
+            fontWeight: FontWeight.bold,
+          ),
     );
   }
-  
+
   Widget _buildProductResult(dynamic productData) {
     return AppCard(
       margin: const EdgeInsets.only(bottom: AppSpacing.md),
@@ -337,9 +347,9 @@ class _SearchPageState extends State<SearchPage> {
                     Text(
                       productData['name'] as String,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppColors.darkNavy,
-                        fontWeight: FontWeight.w600,
-                      ),
+                            color: AppColors.darkNavy,
+                            fontWeight: FontWeight.w600,
+                          ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -348,8 +358,8 @@ class _SearchPageState extends State<SearchPage> {
                       Text(
                         productData['store_name'] as String,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppColors.gray,
-                        ),
+                              color: AppColors.gray,
+                            ),
                       ),
                     ],
                   ],
@@ -365,7 +375,7 @@ class _SearchPageState extends State<SearchPage> {
       ),
     );
   }
-  
+
   Widget _buildStoreResult(dynamic storeData) {
     return AppCard(
       margin: const EdgeInsets.only(bottom: AppSpacing.md),
@@ -420,9 +430,9 @@ class _SearchPageState extends State<SearchPage> {
                     Text(
                       storeData['name'] as String,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppColors.darkNavy,
-                        fontWeight: FontWeight.w600,
-                      ),
+                            color: AppColors.darkNavy,
+                            fontWeight: FontWeight.w600,
+                          ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -431,8 +441,8 @@ class _SearchPageState extends State<SearchPage> {
                       Text(
                         storeData['address'] as String,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppColors.gray,
-                        ),
+                              color: AppColors.gray,
+                            ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),

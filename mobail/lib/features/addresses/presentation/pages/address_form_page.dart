@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/widgets/app_widgets.dart';
+import '../../../../l10n/generated/app_localizations.dart';
 import '../../../../data/models/models.dart';
 
 class AddressFormPage extends StatefulWidget {
   final AddressModel? address; // If null, it's add mode
-  
+
   const AddressFormPage({
     super.key,
     this.address,
   });
-  
+
   @override
   State<AddressFormPage> createState() => _AddressFormPageState();
 }
@@ -23,7 +24,7 @@ class _AddressFormPageState extends State<AddressFormPage> {
   final _addressController = TextEditingController();
   bool _isDefault = false;
   bool _isSaving = false;
-  
+
   @override
   void initState() {
     super.initState();
@@ -35,7 +36,7 @@ class _AddressFormPageState extends State<AddressFormPage> {
       _isDefault = widget.address!.isDefault;
     }
   }
-  
+
   @override
   void dispose() {
     _labelController.dispose();
@@ -44,7 +45,7 @@ class _AddressFormPageState extends State<AddressFormPage> {
     _addressController.dispose();
     super.dispose();
   }
-  
+
   void _saveAddress() {
     if (_formKey.currentState!.validate()) {
       final address = AddressModel(
@@ -58,19 +59,19 @@ class _AddressFormPageState extends State<AddressFormPage> {
         createdAt: widget.address?.createdAt ?? DateTime.now(),
         updatedAt: DateTime.now(),
       );
-      
+
       setState(() {
         _isSaving = true;
       });
-      
+
       Navigator.of(context).pop(address);
     }
   }
-  
+
   @override
   Widget build(BuildContext context) {
     final isEditMode = widget.address != null;
-    
+
     return Scaffold(
       body: SafeArea(
         child: Column(
@@ -84,8 +85,9 @@ class _AddressFormPageState extends State<AddressFormPage> {
       ),
     );
   }
-  
+
   Widget _buildHeader(bool isEditMode) {
+    final l10n = AppLocalizations.of(context);
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
@@ -101,12 +103,15 @@ class _AddressFormPageState extends State<AddressFormPage> {
       child: Row(
         children: [
           IconButton(
-            icon: const Icon(Icons.arrow_back),
+            icon: const Icon(
+              Icons.arrow_back,
+            ),
+            tooltip: l10n.goBack,
             onPressed: () => Navigator.of(context).pop(),
           ),
           Expanded(
             child: Text(
-              isEditMode ? 'Edit Address' : 'Add Address',
+              isEditMode ? l10n.editAddress : l10n.addAddress,
               style: const TextStyle(
                 color: AppColors.darkNavy,
                 fontWeight: FontWeight.bold,
@@ -118,8 +123,9 @@ class _AddressFormPageState extends State<AddressFormPage> {
       ),
     );
   }
-  
+
   Widget _buildForm() {
+    final l10n = AppLocalizations.of(context);
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppSpacing.md),
       child: Form(
@@ -129,14 +135,14 @@ class _AddressFormPageState extends State<AddressFormPage> {
           children: [
             TextFormField(
               controller: _labelController,
-              decoration: const InputDecoration(
-                labelText: 'Label',
-                hintText: 'e.g., Home, Work',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: l10n.addressLabel,
+                hintText: l10n.labelHint,
+                border: const OutlineInputBorder(),
               ),
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
-                  return 'Label is required';
+                  return l10n.labelRequired;
                 }
                 return null;
               },
@@ -144,14 +150,14 @@ class _AddressFormPageState extends State<AddressFormPage> {
             const SizedBox(height: AppSpacing.md),
             TextFormField(
               controller: _recipientNameController,
-              decoration: const InputDecoration(
-                labelText: 'Recipient Name',
-                hintText: 'Enter recipient name',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: l10n.recipientName,
+                hintText: l10n.recipientNameHint,
+                border: const OutlineInputBorder(),
               ),
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
-                  return 'Recipient name is required';
+                  return l10n.recipientNameRequired;
                 }
                 return null;
               },
@@ -159,15 +165,15 @@ class _AddressFormPageState extends State<AddressFormPage> {
             const SizedBox(height: AppSpacing.md),
             TextFormField(
               controller: _phoneController,
-              decoration: const InputDecoration(
-                labelText: 'Phone',
-                hintText: 'Enter phone number',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: l10n.phone,
+                hintText: l10n.phoneHintGeneric,
+                border: const OutlineInputBorder(),
               ),
               keyboardType: TextInputType.phone,
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
-                  return 'Phone is required';
+                  return l10n.phoneRequired;
                 }
                 return null;
               },
@@ -175,15 +181,15 @@ class _AddressFormPageState extends State<AddressFormPage> {
             const SizedBox(height: AppSpacing.md),
             TextFormField(
               controller: _addressController,
-              decoration: const InputDecoration(
-                labelText: 'Delivery Address',
-                hintText: 'Enter delivery address',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: l10n.deliveryAddress,
+                hintText: l10n.deliveryAddressHint,
+                border: const OutlineInputBorder(),
               ),
               maxLines: 3,
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
-                  return 'Address is required';
+                  return l10n.addressRequired;
                 }
                 return null;
               },
@@ -201,9 +207,9 @@ class _AddressFormPageState extends State<AddressFormPage> {
                   activeColor: AppColors.primary,
                 ),
                 const SizedBox(width: AppSpacing.sm),
-                const Text(
-                  'Set as default address',
-                  style: TextStyle(
+                Text(
+                  l10n.setAsDefaultAddress,
+                  style: const TextStyle(
                     color: AppColors.darkNavy,
                   ),
                 ),
@@ -211,7 +217,7 @@ class _AddressFormPageState extends State<AddressFormPage> {
             ),
             const SizedBox(height: AppSpacing.xl),
             AppButton(
-              text: _isSaving ? 'Saving...' : 'Save Address',
+              text: _isSaving ? l10n.saving : l10n.saveAddressButton,
               type: AppButtonType.primary,
               isFullWidth: true,
               onPressed: _isSaving ? null : _saveAddress,

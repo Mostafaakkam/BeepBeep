@@ -1,4 +1,5 @@
 const storeService = require('../services/storeService');
+const orderService = require('../services/orderService');
 
 const getAllStores = async (req, res) => {
   try {
@@ -44,7 +45,35 @@ const getStoreById = async (req, res) => {
   }
 };
 
+// Store Owner order visibility. Mounted with authenticate + requireRole +
+// requireStoreOwnership (see routes/storeRoutes.js) -- by the time this
+// runs, the authorization middleware has already verified the authenticated
+// user owns this store (or is an admin) and rejected the request otherwise.
+// req.params.storeId is only ever used here after that verification: it is
+// never trusted as-is to decide what data to return.
+const getStoreOrders = async (req, res) => {
+  try {
+    const storeId = parseInt(req.params.storeId, 10);
+    const { status } = req.query;
+
+    const orders = await orderService.getOrdersForStore(storeId, status);
+
+    res.status(200).json({
+      success: true,
+      message: 'Store orders retrieved successfully',
+      data: orders
+    });
+  } catch (error) {
+    console.error('Get store orders error:', error.message);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve store orders'
+    });
+  }
+};
+
 module.exports = {
   getAllStores,
-  getStoreById
+  getStoreById,
+  getStoreOrders
 };

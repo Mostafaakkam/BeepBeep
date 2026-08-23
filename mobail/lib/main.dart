@@ -1,22 +1,51 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'core/theme/app_theme.dart';
 import 'core/widgets/app_widgets.dart';
 import 'core/constants/app_constants.dart';
+import 'core/locale/locale_provider.dart';
+import 'l10n/generated/app_localizations.dart';
 import 'features/auth/presentation/pages/splash_page.dart';
 
 void main() {
   runApp(const BeepBeepApp());
 }
 
-class BeepBeepApp extends StatelessWidget {
+class BeepBeepApp extends StatefulWidget {
   const BeepBeepApp({super.key});
 
   @override
+  State<BeepBeepApp> createState() => _BeepBeepAppState();
+}
+
+class _BeepBeepAppState extends State<BeepBeepApp> {
+  @override
+  void initState() {
+    super.initState();
+    // English is the default; this only overrides it if the user
+    // previously chose Arabic and that choice was persisted.
+    localeProvider.loadSavedLocale();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Beep Beep',
-      theme: AppTheme.lightTheme,
-      home: const SplashPage(),
+    return ListenableBuilder(
+      listenable: localeProvider,
+      builder: (context, child) {
+        return MaterialApp(
+          title: 'Beep Beep',
+          theme: AppTheme.lightTheme,
+          locale: localeProvider.locale,
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          home: const SplashPage(),
+        );
+      },
     );
   }
 }
@@ -67,7 +96,7 @@ class DesignSystemDemo extends StatelessWidget {
               style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: AppSpacing.lg),
-            
+
             // Buttons Demo
             Text(
               'Buttons',
@@ -100,7 +129,7 @@ class DesignSystemDemo extends StatelessWidget {
               isLoading: true,
             ),
             const SizedBox(height: AppSpacing.lg),
-            
+
             // Text Fields Demo
             Text(
               'Text Fields',
@@ -125,7 +154,7 @@ class DesignSystemDemo extends StatelessWidget {
               enabled: false,
             ),
             const SizedBox(height: AppSpacing.lg),
-            
+
             // Cards Demo
             Text(
               'Cards',

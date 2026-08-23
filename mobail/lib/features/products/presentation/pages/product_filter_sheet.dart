@@ -1,18 +1,19 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/widgets/app_widgets.dart';
+import '../../../../l10n/generated/app_localizations.dart';
 import '../../../../data/models/models.dart';
 
 class ProductFilterSheet extends StatefulWidget {
   final ProductFilter initialFilter;
   final Function(ProductFilter) onApply;
-  
+
   const ProductFilterSheet({
     super.key,
     required this.initialFilter,
     required this.onApply,
   });
-  
+
   @override
   State<ProductFilterSheet> createState() => _ProductFilterSheetState();
 }
@@ -22,7 +23,7 @@ class _ProductFilterSheetState extends State<ProductFilterSheet> {
   final _minPriceController = TextEditingController();
   final _maxPriceController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
-  
+
   @override
   void initState() {
     super.initState();
@@ -34,16 +35,17 @@ class _ProductFilterSheetState extends State<ProductFilterSheet> {
       _maxPriceController.text = _filter.maxPrice!.toStringAsFixed(0);
     }
   }
-  
+
   @override
   void dispose() {
     _minPriceController.dispose();
     _maxPriceController.dispose();
     super.dispose();
   }
-  
+
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: const BoxDecoration(
@@ -58,7 +60,7 @@ class _ProductFilterSheetState extends State<ProductFilterSheet> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Filter Products',
+                l10n.filterProducts,
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                   color: AppColors.darkNavy,
                   fontWeight: FontWeight.bold,
@@ -72,7 +74,7 @@ class _ProductFilterSheetState extends State<ProductFilterSheet> {
                     _maxPriceController.clear();
                   });
                 },
-                child: const Text('Clear All'),
+                child: Text(l10n.clearAll),
               ),
             ],
           ),
@@ -86,7 +88,7 @@ class _ProductFilterSheetState extends State<ProductFilterSheet> {
                   children: [
                     // Price Range
                     Text(
-                      'Price Range',
+                      l10n.priceRangeLabel,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: AppColors.darkNavy,
                         fontWeight: FontWeight.w600,
@@ -98,10 +100,10 @@ class _ProductFilterSheetState extends State<ProductFilterSheet> {
                         Expanded(
                           child: TextFormField(
                             controller: _minPriceController,
-                            decoration: const InputDecoration(
-                              labelText: 'Min Price',
-                              hintText: '0',
-                              border: OutlineInputBorder(),
+                            decoration: InputDecoration(
+                              labelText: l10n.minPrice,
+                              hintText: l10n.zeroPlaceholder,
+                              border: const OutlineInputBorder(),
                             ),
                             keyboardType: TextInputType.number,
                             onChanged: (value) {
@@ -118,10 +120,10 @@ class _ProductFilterSheetState extends State<ProductFilterSheet> {
                         Expanded(
                           child: TextFormField(
                             controller: _maxPriceController,
-                            decoration: const InputDecoration(
-                              labelText: 'Max Price',
-                              hintText: 'Any',
-                              border: OutlineInputBorder(),
+                            decoration: InputDecoration(
+                              labelText: l10n.maxPrice,
+                              hintText: l10n.anyHint,
+                              border: const OutlineInputBorder(),
                             ),
                             keyboardType: TextInputType.number,
                             onChanged: (value) {
@@ -135,7 +137,7 @@ class _ProductFilterSheetState extends State<ProductFilterSheet> {
                       ],
                     ),
                     const SizedBox(height: AppSpacing.lg),
-                    
+
                     // Availability
                     Row(
                       children: [
@@ -149,19 +151,19 @@ class _ProductFilterSheetState extends State<ProductFilterSheet> {
                           activeColor: AppColors.primary,
                         ),
                         const SizedBox(width: AppSpacing.sm),
-                        const Text(
-                          'In Stock Only',
-                          style: TextStyle(
+                        Text(
+                          l10n.inStockOnly,
+                          style: const TextStyle(
                             color: AppColors.darkNavy,
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(height: AppSpacing.lg),
-                    
+
                     // Sorting
                     Text(
-                      'Sort By',
+                      l10n.sortBy,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: AppColors.darkNavy,
                         fontWeight: FontWeight.w600,
@@ -173,12 +175,12 @@ class _ProductFilterSheetState extends State<ProductFilterSheet> {
                       decoration: const InputDecoration(
                         border: OutlineInputBorder(),
                       ),
-                      items: const [
-                        DropdownMenuItem(value: 'newest', child: Text('Newest')),
-                        DropdownMenuItem(value: 'price_asc', child: Text('Price: Low to High')),
-                        DropdownMenuItem(value: 'price_desc', child: Text('Price: High to Low')),
-                        DropdownMenuItem(value: 'name_asc', child: Text('Name: A to Z')),
-                        DropdownMenuItem(value: 'name_desc', child: Text('Name: Z to A')),
+                      items: [
+                        DropdownMenuItem(value: 'newest', child: Text(l10n.newest)),
+                        DropdownMenuItem(value: 'price_asc', child: Text(l10n.priceAsc)),
+                        DropdownMenuItem(value: 'price_desc', child: Text(l10n.priceDesc)),
+                        DropdownMenuItem(value: 'name_asc', child: Text(l10n.nameAsc)),
+                        DropdownMenuItem(value: 'name_desc', child: Text(l10n.nameDesc)),
                       ],
                       onChanged: (value) {
                         setState(() {
@@ -196,7 +198,7 @@ class _ProductFilterSheetState extends State<ProductFilterSheet> {
             children: [
               Expanded(
                 child: AppButton(
-                  text: 'Cancel',
+                  text: l10n.cancel,
                   type: AppButtonType.secondary,
                   isFullWidth: true,
                   onPressed: () => Navigator.of(context).pop(),
@@ -205,7 +207,7 @@ class _ProductFilterSheetState extends State<ProductFilterSheet> {
               const SizedBox(width: AppSpacing.md),
               Expanded(
                 child: AppButton(
-                  text: 'Apply Filters',
+                  text: l10n.apply,
                   type: AppButtonType.primary,
                   isFullWidth: true,
                   onPressed: () {

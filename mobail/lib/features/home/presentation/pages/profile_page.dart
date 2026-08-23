@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/widgets/app_widgets.dart';
+import '../../../../core/locale/locale_provider.dart';
+import '../../../../l10n/generated/app_localizations.dart';
 import '../../../auth/presentation/viewmodels/auth_viewmodel.dart';
 import '../../../auth/presentation/pages/login_page.dart';
 import '../../../orders/presentation/pages/orders_page.dart';
@@ -9,7 +11,7 @@ import '../../../addresses/presentation/pages/addresses_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
-  
+
   @override
   State<ProfilePage> createState() => _ProfilePageState();
 }
@@ -17,27 +19,27 @@ class ProfilePage extends StatefulWidget {
 class _ProfilePageState extends State<ProfilePage> {
   final AuthViewModel _authViewModel = AuthViewModel();
   bool _isLoggingOut = false;
-  
+
   @override
   void initState() {
     super.initState();
     _authViewModel.loadUserInfo();
   }
-  
+
   @override
   void dispose() {
     _authViewModel.dispose();
     super.dispose();
   }
-  
+
   Future<void> _handleLogout() async {
     setState(() {
       _isLoggingOut = true;
     });
-    
+
     try {
       await _authViewModel.logout();
-      
+
       if (mounted) {
         // Navigate to login and clear the navigation stack
         Navigator.of(context).pushAndRemoveUntil(
@@ -50,17 +52,18 @@ class _ProfilePageState extends State<ProfilePage> {
         setState(() {
           _isLoggingOut = false;
         });
+        final l10n = AppLocalizations.of(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Logout failed. Please try again.'),
+          SnackBar(
+            content: Text(l10n.logoutFailed),
             backgroundColor: AppColors.error,
-            duration: Duration(seconds: 3),
+            duration: const Duration(seconds: 3),
           ),
         );
       }
     }
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -76,11 +79,12 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
     );
   }
-  
+
   Widget _buildHeader() {
     return ListenableBuilder(
       listenable: _authViewModel,
       builder: (context, child) {
+        final l10n = AppLocalizations.of(context);
         return Container(
           padding: const EdgeInsets.all(AppSpacing.md),
           decoration: BoxDecoration(
@@ -97,7 +101,7 @@ class _ProfilePageState extends State<ProfilePage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Profile',
+                l10n.profile,
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                   color: AppColors.darkNavy,
                   fontWeight: FontWeight.bold,
@@ -106,14 +110,18 @@ class _ProfilePageState extends State<ProfilePage> {
               const SizedBox(height: AppSpacing.md),
               if (_authViewModel.userInfo != null) ...[
                 Text(
-                  'Name: ${_authViewModel.userInfo!['name']?.toString() ?? 'N/A'}',
+                  l10n.nameValue(
+                    _authViewModel.userInfo!['name']?.toString() ?? l10n.notAvailable,
+                  ),
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: AppColors.gray,
                   ),
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
-                  'Role: ${_authViewModel.userInfo!['role']?.toString() ?? 'N/A'}',
+                  l10n.roleValue(
+                    _authViewModel.userInfo!['role']?.toString() ?? l10n.notAvailable,
+                  ),
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: AppColors.gray,
                   ),
@@ -125,8 +133,9 @@ class _ProfilePageState extends State<ProfilePage> {
       },
     );
   }
-  
+
   Widget _buildContent() {
+    final l10n = AppLocalizations.of(context);
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppSpacing.md),
       child: Column(
@@ -137,7 +146,7 @@ class _ProfilePageState extends State<ProfilePage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Account',
+                  l10n.account,
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                     color: AppColors.darkNavy,
                   ),
@@ -154,19 +163,21 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
           ),
           const SizedBox(height: AppSpacing.lg),
+          _buildLanguageCard(),
+          const SizedBox(height: AppSpacing.lg),
           AppCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Coming Soon',
+                  l10n.comingSoon,
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                     color: AppColors.darkNavy,
                   ),
                 ),
                 const SizedBox(height: AppSpacing.md),
                 Text(
-                  'More profile features will be added in future updates.',
+                  l10n.comingSoonDescription,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: AppColors.gray,
                   ),
@@ -178,10 +189,96 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
     );
   }
-  
+
+  /// Language selector: lets the user pick English or Arabic and persists
+  /// the choice (via [localeProvider], backed by SharedPreferences).
+  Widget _buildLanguageCard() {
+    return ListenableBuilder(
+      listenable: localeProvider,
+      builder: (context, child) {
+        final l10n = AppLocalizations.of(context);
+        return AppCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                l10n.language,
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                  color: AppColors.darkNavy,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildLanguageOption(
+                      label: l10n.englishLanguage,
+                      selected: localeProvider.locale.languageCode == 'en',
+                      onTap: () => localeProvider.setLocale(const Locale('en')),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: _buildLanguageOption(
+                      label: l10n.arabicLanguage,
+                      selected: localeProvider.locale.languageCode == 'ar',
+                      onTap: () => localeProvider.setLocale(const Locale('ar')),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildLanguageOption({
+    required String label,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(AppBorderRadius.sm),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          vertical: AppSpacing.sm,
+          horizontal: AppSpacing.md,
+        ),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.primary.withOpacity(0.1) : AppColors.lightGray,
+          borderRadius: BorderRadius.circular(AppBorderRadius.sm),
+          border: Border.all(
+            color: selected ? AppColors.primary : Colors.transparent,
+            width: 2,
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (selected) ...[
+              const Icon(Icons.check_circle, color: AppColors.primary, size: 18),
+              const SizedBox(width: AppSpacing.xs),
+            ],
+            Text(
+              label,
+              style: TextStyle(
+                color: selected ? AppColors.primary : AppColors.darkNavy,
+                fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildMyOrdersButton() {
+    final l10n = AppLocalizations.of(context);
     return AppButton(
-      text: 'My Orders',
+      text: l10n.myOrders,
       type: AppButtonType.secondary,
       isFullWidth: true,
       onPressed: () {
@@ -193,10 +290,11 @@ class _ProfilePageState extends State<ProfilePage> {
       },
     );
   }
-  
+
   Widget _buildMyFavoritesButton() {
+    final l10n = AppLocalizations.of(context);
     return AppButton(
-      text: 'My Favorites',
+      text: l10n.myFavorites,
       type: AppButtonType.secondary,
       isFullWidth: true,
       onPressed: () {
@@ -208,10 +306,11 @@ class _ProfilePageState extends State<ProfilePage> {
       },
     );
   }
-  
+
   Widget _buildMyAddressesButton() {
+    final l10n = AppLocalizations.of(context);
     return AppButton(
-      text: 'My Addresses',
+      text: l10n.myAddresses,
       type: AppButtonType.secondary,
       isFullWidth: true,
       onPressed: () {
@@ -223,10 +322,11 @@ class _ProfilePageState extends State<ProfilePage> {
       },
     );
   }
-  
+
   Widget _buildLogoutButton() {
+    final l10n = AppLocalizations.of(context);
     return AppButton(
-      text: 'Logout',
+      text: l10n.logout,
       type: AppButtonType.primary,
       isFullWidth: true,
       isLoading: _isLoggingOut,

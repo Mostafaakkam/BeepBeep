@@ -31,6 +31,10 @@ dependencies:
   flutter:
     sdk: flutter
 
+  flutter_localizations:
+    sdk: flutter
+  intl: ^0.19.0
+
   google_fonts: ^6.1.0
   http: ^1.2.0
   shared_preferences: ^2.2.2
@@ -55,6 +59,12 @@ dev_dependencies:
 
 # The following section is specific to Flutter packages.
 flutter:
+
+  # Enables the generation of the AppLocalizations class from the ARB files
+  # under lib/l10n/ (configured in l10n.yaml). This powers the app's
+  # English/Arabic localization via the standard flutter_localizations +
+  # gen_l10n toolchain.
+  generate: true
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in

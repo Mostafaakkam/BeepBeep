@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/widgets/app_widgets.dart';
+import '../../../../l10n/generated/app_localizations.dart';
 import '../viewmodels/favorite_viewmodel.dart';
 import '../../../products/presentation/pages/product_details_page.dart';
 import '../../../auth/presentation/viewmodels/auth_viewmodel.dart';
@@ -8,7 +9,7 @@ import '../../../auth/presentation/pages/login_page.dart';
 
 class FavoritesPage extends StatefulWidget {
   const FavoritesPage({super.key});
-  
+
   @override
   State<FavoritesPage> createState() => _FavoritesPageState();
 }
@@ -16,27 +17,27 @@ class FavoritesPage extends StatefulWidget {
 class _FavoritesPageState extends State<FavoritesPage> {
   final FavoriteViewModel _viewModel = FavoriteViewModel();
   final AuthViewModel _authViewModel = AuthViewModel();
-  
+
   @override
   void initState() {
     super.initState();
     _authViewModel.checkAuthStatus();
     _loadFavoritesIfAuthenticated();
   }
-  
+
   Future<void> _loadFavoritesIfAuthenticated() async {
     if (_authViewModel.isAuthenticated) {
       await _viewModel.loadFavorites();
     }
   }
-  
+
   @override
   void dispose() {
     _viewModel.dispose();
     _authViewModel.dispose();
     super.dispose();
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -52,8 +53,9 @@ class _FavoritesPageState extends State<FavoritesPage> {
       ),
     );
   }
-  
+
   Widget _buildHeader() {
+    final l10n = AppLocalizations.of(context);
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
@@ -69,13 +71,16 @@ class _FavoritesPageState extends State<FavoritesPage> {
       child: Row(
         children: [
           IconButton(
-            icon: const Icon(Icons.arrow_back),
+            icon: const Icon(
+              Icons.arrow_back,
+            ),
+            tooltip: l10n.goBack,
             onPressed: () => Navigator.of(context).pop(),
           ),
-          const Expanded(
+          Expanded(
             child: Text(
-              'My Favorites',
-              style: TextStyle(
+              l10n.myFavorites,
+              style: const TextStyle(
                 color: AppColors.darkNavy,
                 fontWeight: FontWeight.bold,
                 fontSize: 18,
@@ -86,7 +91,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
       ),
     );
   }
-  
+
   Widget _buildContent() {
     return ListenableBuilder(
       listenable: _authViewModel,
@@ -94,30 +99,31 @@ class _FavoritesPageState extends State<FavoritesPage> {
         if (!_authViewModel.isAuthenticated) {
           return _buildLoginRequiredState();
         }
-        
+
         return ListenableBuilder(
           listenable: _viewModel,
           builder: (context, child) {
             if (_viewModel.isLoading) {
               return _buildLoadingState();
             }
-            
+
             if (_viewModel.isError) {
               return _buildErrorState();
             }
-            
+
             if (!_viewModel.hasFavorites) {
               return _buildEmptyState();
             }
-            
+
             return _buildFavoritesList();
           },
         );
       },
     );
   }
-  
+
   Widget _buildLoginRequiredState() {
+    final l10n = AppLocalizations.of(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
@@ -131,22 +137,22 @@ class _FavoritesPageState extends State<FavoritesPage> {
             ),
             const SizedBox(height: AppSpacing.md),
             Text(
-              'Login to View Favorites',
+              l10n.loginToViewFavorites,
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                color: AppColors.darkNavy,
-              ),
+                    color: AppColors.darkNavy,
+                  ),
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
-              'You need to be logged in to view your favorite products',
+              l10n.loginRequiredFavoritesMessage,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppColors.gray,
-              ),
+                    color: AppColors.gray,
+                  ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: AppSpacing.lg),
             AppButton(
-              text: 'Login',
+              text: l10n.login,
               type: AppButtonType.primary,
               onPressed: () {
                 Navigator.of(context).push(
@@ -161,7 +167,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
       ),
     );
   }
-  
+
   Widget _buildLoadingState() {
     return const Center(
       child: CircularProgressIndicator(
@@ -169,8 +175,9 @@ class _FavoritesPageState extends State<FavoritesPage> {
       ),
     );
   }
-  
+
   Widget _buildErrorState() {
+    final l10n = AppLocalizations.of(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
@@ -184,15 +191,15 @@ class _FavoritesPageState extends State<FavoritesPage> {
             ),
             const SizedBox(height: AppSpacing.md),
             Text(
-              _viewModel.errorMessage ?? 'Failed to load favorites',
+              _viewModel.errorMessage ?? l10n.failedToLoadFavorites,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppColors.gray,
-              ),
+                    color: AppColors.gray,
+                  ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: AppSpacing.lg),
             AppButton(
-              text: 'Retry',
+              text: l10n.retry,
               type: AppButtonType.primary,
               onPressed: _viewModel.retry,
             ),
@@ -201,8 +208,9 @@ class _FavoritesPageState extends State<FavoritesPage> {
       ),
     );
   }
-  
+
   Widget _buildEmptyState() {
+    final l10n = AppLocalizations.of(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
@@ -216,24 +224,24 @@ class _FavoritesPageState extends State<FavoritesPage> {
             ),
             const SizedBox(height: AppSpacing.md),
             Text(
-              'No favorites yet',
+              l10n.noFavorites,
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                color: AppColors.darkNavy,
-              ),
+                    color: AppColors.darkNavy,
+                  ),
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
-              'Start adding products to your favorites',
+              l10n.noFavoritesSubtitle,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppColors.gray,
-              ),
+                    color: AppColors.gray,
+                  ),
             ),
           ],
         ),
       ),
     );
   }
-  
+
   Widget _buildFavoritesList() {
     return ListView.builder(
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -243,7 +251,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
       },
     );
   }
-  
+
   Widget _buildFavoriteCard(dynamic favorite) {
     return AppCard(
       margin: const EdgeInsets.only(bottom: AppSpacing.md),
@@ -297,9 +305,9 @@ class _FavoritesPageState extends State<FavoritesPage> {
                     Text(
                       favorite['product_name'] as String,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppColors.darkNavy,
-                        fontWeight: FontWeight.w600,
-                      ),
+                            color: AppColors.darkNavy,
+                            fontWeight: FontWeight.w600,
+                          ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -308,18 +316,20 @@ class _FavoritesPageState extends State<FavoritesPage> {
                       Text(
                         favorite['store_name'] as String,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppColors.gray,
-                        ),
+                              color: AppColors.gray,
+                            ),
                       ),
                     ],
                     if (favorite['lowest_price'] != null) ...[
                       const SizedBox(height: AppSpacing.xs),
                       Text(
-                        (favorite['lowest_price'] as num).toDouble().toStringAsFixed(2),
+                        (favorite['lowest_price'] as num)
+                            .toDouble()
+                            .toStringAsFixed(2),
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.bold,
-                        ),
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.bold,
+                            ),
                       ),
                     ],
                   ],
@@ -329,7 +339,8 @@ class _FavoritesPageState extends State<FavoritesPage> {
                 icon: const Icon(Icons.favorite, color: AppColors.error),
                 onPressed: _viewModel.isOperationInProgress
                     ? null
-                    : () => _viewModel.removeFavorite(favorite['product_id'] as int),
+                    : () => _viewModel
+                        .removeFavorite(favorite['product_id'] as int),
               ),
             ],
           ),

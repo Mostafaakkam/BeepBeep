@@ -1,32 +1,33 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/widgets/app_widgets.dart';
+import '../../../../l10n/generated/app_localizations.dart';
 import '../viewmodels/cart_viewmodel.dart';
 import '../../../../data/models/models.dart';
 import '../../../orders/presentation/pages/checkout_page.dart';
 
 class CartPage extends StatefulWidget {
   const CartPage({super.key});
-  
+
   @override
   State<CartPage> createState() => _CartPageState();
 }
 
 class _CartPageState extends State<CartPage> {
   final CartViewModel _viewModel = CartViewModel();
-  
+
   @override
   void initState() {
     super.initState();
     _viewModel.loadCart();
   }
-  
+
   @override
   void dispose() {
     _viewModel.dispose();
     super.dispose();
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -42,8 +43,9 @@ class _CartPageState extends State<CartPage> {
       ),
     );
   }
-  
+
   Widget _buildHeader() {
+    final l10n = AppLocalizations.of(context);
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
@@ -59,13 +61,16 @@ class _CartPageState extends State<CartPage> {
       child: Row(
         children: [
           IconButton(
-            icon: const Icon(Icons.arrow_back),
+            icon: const Icon(
+              Icons.arrow_back,
+            ),
+            tooltip: l10n.goBack,
             onPressed: () => Navigator.of(context).pop(),
           ),
-          const Expanded(
+          Expanded(
             child: Text(
-              'Shopping Cart',
-              style: TextStyle(
+              l10n.shoppingCart,
+              style: const TextStyle(
                 color: AppColors.darkNavy,
                 fontWeight: FontWeight.bold,
                 fontSize: 18,
@@ -76,7 +81,7 @@ class _CartPageState extends State<CartPage> {
       ),
     );
   }
-  
+
   Widget _buildContent() {
     return ListenableBuilder(
       listenable: _viewModel,
@@ -84,20 +89,20 @@ class _CartPageState extends State<CartPage> {
         if (_viewModel.isLoading) {
           return _buildLoadingState();
         }
-        
+
         if (_viewModel.isError) {
           return _buildErrorState();
         }
-        
+
         if (_viewModel.isEmpty) {
           return _buildEmptyState();
         }
-        
+
         return _buildCartContent();
       },
     );
   }
-  
+
   Widget _buildLoadingState() {
     return const Center(
       child: CircularProgressIndicator(
@@ -105,8 +110,9 @@ class _CartPageState extends State<CartPage> {
       ),
     );
   }
-  
+
   Widget _buildErrorState() {
+    final l10n = AppLocalizations.of(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
@@ -120,15 +126,15 @@ class _CartPageState extends State<CartPage> {
             ),
             const SizedBox(height: AppSpacing.md),
             Text(
-              _viewModel.errorMessage ?? 'Failed to load cart',
+              _viewModel.errorMessage ?? l10n.failedToLoadCart,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppColors.gray,
-              ),
+                    color: AppColors.gray,
+                  ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: AppSpacing.lg),
             AppButton(
-              text: 'Retry',
+              text: l10n.retry,
               type: AppButtonType.primary,
               onPressed: _viewModel.retry,
             ),
@@ -137,8 +143,9 @@ class _CartPageState extends State<CartPage> {
       ),
     );
   }
-  
+
   Widget _buildEmptyState() {
+    final l10n = AppLocalizations.of(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
@@ -152,24 +159,24 @@ class _CartPageState extends State<CartPage> {
             ),
             const SizedBox(height: AppSpacing.md),
             Text(
-              'Your cart is empty',
+              l10n.emptyCart,
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                color: AppColors.darkNavy,
-              ),
+                    color: AppColors.darkNavy,
+                  ),
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
-              'Add some products to get started',
+              l10n.emptyCartSubtitle,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppColors.gray,
-              ),
+                    color: AppColors.gray,
+                  ),
             ),
           ],
         ),
       ),
     );
   }
-  
+
   Widget _buildCartContent() {
     return Column(
       children: [
@@ -186,7 +193,7 @@ class _CartPageState extends State<CartPage> {
       ],
     );
   }
-  
+
   Widget _buildCartItem(CartItem item) {
     return AppCard(
       margin: const EdgeInsets.only(bottom: AppSpacing.md),
@@ -228,28 +235,30 @@ class _CartPageState extends State<CartPage> {
                 Text(
                   item.product.name,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.darkNavy,
-                    fontWeight: FontWeight.w600,
-                  ),
+                        color: AppColors.darkNavy,
+                        fontWeight: FontWeight.w600,
+                      ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: AppSpacing.xs),
-                if (item.variant.color != null || item.variant.size != null) ...[
+                if (item.variant.color != null ||
+                    item.variant.size != null) ...[
                   Text(
-                    '${item.variant.color ?? ''} ${item.variant.size ?? ''}'.trim(),
+                    '${item.variant.color ?? ''} ${item.variant.size ?? ''}'
+                        .trim(),
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.gray,
-                    ),
+                          color: AppColors.gray,
+                        ),
                   ),
                   const SizedBox(height: AppSpacing.xs),
                 ],
                 Text(
                   item.variant.price.toStringAsFixed(2),
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.bold,
-                  ),
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.bold,
+                      ),
                 ),
               ],
             ),
@@ -271,7 +280,7 @@ class _CartPageState extends State<CartPage> {
       ),
     );
   }
-  
+
   Widget _buildQuantityControls(CartItem item) {
     return Container(
       decoration: BoxDecoration(
@@ -305,8 +314,8 @@ class _CartPageState extends State<CartPage> {
             child: Text(
               '${item.quantity}',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppColors.darkNavy,
-              ),
+                    color: AppColors.darkNavy,
+                  ),
             ),
           ),
           IconButton(
@@ -329,8 +338,9 @@ class _CartPageState extends State<CartPage> {
       ),
     );
   }
-  
+
   Widget _buildCartSummary() {
+    final l10n = AppLocalizations.of(context);
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
@@ -349,16 +359,16 @@ class _CartPageState extends State<CartPage> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Subtotal (${_viewModel.itemCount} items)',
+                l10n.subtotalItems(_viewModel.itemCount),
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppColors.gray,
-                ),
+                      color: AppColors.gray,
+                    ),
               ),
               Text(
                 _viewModel.subtotal.toStringAsFixed(2),
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppColors.darkNavy,
-                ),
+                      color: AppColors.darkNavy,
+                    ),
               ),
             ],
           ),
@@ -367,16 +377,16 @@ class _CartPageState extends State<CartPage> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Delivery Fee',
+                l10n.deliveryFee,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppColors.gray,
-                ),
+                      color: AppColors.gray,
+                    ),
               ),
               Text(
                 '5.00',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppColors.darkNavy,
-                ),
+                      color: AppColors.darkNavy,
+                    ),
               ),
             ],
           ),
@@ -385,24 +395,24 @@ class _CartPageState extends State<CartPage> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Total',
+                l10n.total,
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  color: AppColors.darkNavy,
-                  fontWeight: FontWeight.bold,
-                ),
+                      color: AppColors.darkNavy,
+                      fontWeight: FontWeight.bold,
+                    ),
               ),
               Text(
                 (_viewModel.total + 5.00).toStringAsFixed(2),
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.bold,
-                ),
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.bold,
+                    ),
               ),
             ],
           ),
           const SizedBox(height: AppSpacing.lg),
           AppButton(
-            text: 'Checkout',
+            text: l10n.checkout,
             type: AppButtonType.primary,
             isFullWidth: true,
             onPressed: _viewModel.isEmpty || _viewModel.isOperationInProgress
@@ -418,7 +428,7 @@ class _CartPageState extends State<CartPage> {
           if (!_viewModel.isEmpty) ...[
             const SizedBox(height: AppSpacing.sm),
             AppButton(
-              text: 'Clear Cart',
+              text: l10n.clearCart,
               type: AppButtonType.secondary,
               isFullWidth: true,
               onPressed: _viewModel.isOperationInProgress

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/widgets/app_widgets.dart';
+import '../../../../l10n/generated/app_localizations.dart';
 import '../../../cart/presentation/viewmodels/cart_viewmodel.dart';
 import '../../../orders/presentation/viewmodels/order_viewmodel.dart';
 import '../../../addresses/presentation/viewmodels/address_viewmodel.dart';
@@ -10,7 +11,7 @@ import '../pages/order_success_page.dart';
 
 class CheckoutPage extends StatefulWidget {
   const CheckoutPage({super.key});
-  
+
   @override
   State<CheckoutPage> createState() => _CheckoutPageState();
 }
@@ -19,7 +20,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
   final CartViewModel _cartViewModel = CartViewModel();
   final OrderViewModel _orderViewModel = OrderViewModel();
   final AddressViewModel _addressViewModel = AddressViewModel();
-  
+
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
   final _addressController = TextEditingController();
@@ -27,14 +28,14 @@ class _CheckoutPageState extends State<CheckoutPage> {
   bool _isPlacingOrder = false;
   AddressModel? _selectedAddress;
   bool _useSavedAddress = false;
-  
+
   @override
   void initState() {
     super.initState();
     _cartViewModel.loadCart();
     _loadAddresses();
   }
-  
+
   Future<void> _loadAddresses() async {
     await _addressViewModel.loadAddresses();
     if (_addressViewModel.defaultAddress != null) {
@@ -45,13 +46,13 @@ class _CheckoutPageState extends State<CheckoutPage> {
       });
     }
   }
-  
+
   void _populateFormFromAddress(AddressModel address) {
     _nameController.text = address.recipientName;
     _phoneController.text = address.phone;
     _addressController.text = address.address;
   }
-  
+
   @override
   void dispose() {
     _cartViewModel.dispose();
@@ -62,33 +63,35 @@ class _CheckoutPageState extends State<CheckoutPage> {
     _addressController.dispose();
     super.dispose();
   }
-  
+
   Future<void> _handlePlaceOrder() async {
     if (!_formKey.currentState!.validate()) {
       return;
     }
-    
+
+    final l10n = AppLocalizations.of(context);
+
     if (_cartViewModel.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Your cart is empty'),
+        SnackBar(
+          content: Text(l10n.emptyCart),
           backgroundColor: AppColors.error,
         ),
       );
       return;
     }
-    
+
     setState(() {
       _isPlacingOrder = true;
     });
-    
+
     try {
       final result = await _orderViewModel.createOrder(
         customerName: _nameController.text.trim(),
         customerPhone: _phoneController.text.trim(),
         deliveryAddress: _addressController.text.trim(),
       );
-      
+
       if (mounted) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
@@ -102,8 +105,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to place order. Please try again.'),
+          SnackBar(
+            content: Text(AppLocalizations.of(context).placeOrderFailed),
             backgroundColor: AppColors.error,
           ),
         );
@@ -116,7 +119,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
       }
     }
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -132,8 +135,9 @@ class _CheckoutPageState extends State<CheckoutPage> {
       ),
     );
   }
-  
+
   Widget _buildHeader() {
+    final l10n = AppLocalizations.of(context);
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
@@ -149,13 +153,16 @@ class _CheckoutPageState extends State<CheckoutPage> {
       child: Row(
         children: [
           IconButton(
-            icon: const Icon(Icons.arrow_back),
+            icon: const Icon(
+              Icons.arrow_back,
+            ),
+            tooltip: l10n.goBack,
             onPressed: () => Navigator.of(context).pop(),
           ),
-          const Expanded(
+          Expanded(
             child: Text(
-              'Checkout',
-              style: TextStyle(
+              l10n.checkout,
+              style: const TextStyle(
                 color: AppColors.darkNavy,
                 fontWeight: FontWeight.bold,
                 fontSize: 18,
@@ -166,7 +173,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
       ),
     );
   }
-  
+
   Widget _buildContent() {
     return ListenableBuilder(
       listenable: _cartViewModel,
@@ -174,16 +181,16 @@ class _CheckoutPageState extends State<CheckoutPage> {
         if (_cartViewModel.isLoading) {
           return _buildLoadingState();
         }
-        
+
         if (_cartViewModel.isEmpty) {
           return _buildEmptyState();
         }
-        
+
         return _buildCheckoutForm();
       },
     );
   }
-  
+
   Widget _buildLoadingState() {
     return const Center(
       child: CircularProgressIndicator(
@@ -191,8 +198,9 @@ class _CheckoutPageState extends State<CheckoutPage> {
       ),
     );
   }
-  
+
   Widget _buildEmptyState() {
+    final l10n = AppLocalizations.of(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
@@ -206,24 +214,24 @@ class _CheckoutPageState extends State<CheckoutPage> {
             ),
             const SizedBox(height: AppSpacing.md),
             Text(
-              'Your cart is empty',
+              l10n.emptyCart,
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                color: AppColors.darkNavy,
-              ),
+                    color: AppColors.darkNavy,
+                  ),
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
-              'Add some products to checkout',
+              l10n.emptyCartCheckoutSubtitle,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppColors.gray,
-              ),
+                    color: AppColors.gray,
+                  ),
             ),
           ],
         ),
       ),
     );
   }
-  
+
   Widget _buildCheckoutForm() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -244,20 +252,21 @@ class _CheckoutPageState extends State<CheckoutPage> {
       ),
     );
   }
-  
+
   Widget _buildDeliverySection() {
+    final l10n = AppLocalizations.of(context);
     return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Delivery Information',
+            l10n.deliveryInformation,
             style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-              color: AppColors.darkNavy,
-            ),
+                  color: AppColors.darkNavy,
+                ),
           ),
           const SizedBox(height: AppSpacing.md),
-          
+
           // Saved address section
           ListenableBuilder(
             listenable: _addressViewModel,
@@ -273,16 +282,17 @@ class _CheckoutPageState extends State<CheckoutPage> {
                           onChanged: (value) {
                             setState(() {
                               _useSavedAddress = value ?? false;
-                              if (_useSavedAddress && _selectedAddress != null) {
+                              if (_useSavedAddress &&
+                                  _selectedAddress != null) {
                                 _populateFormFromAddress(_selectedAddress!);
                               }
                             });
                           },
                           activeColor: AppColors.primary,
                         ),
-                        const Text(
-                          'Use saved address',
-                          style: TextStyle(
+                        Text(
+                          l10n.useSavedAddress,
+                          style: const TextStyle(
                             color: AppColors.darkNavy,
                           ),
                         ),
@@ -299,21 +309,21 @@ class _CheckoutPageState extends State<CheckoutPage> {
               return const SizedBox.shrink();
             },
           ),
-          
+
           // Manual address form
           TextFormField(
             controller: _nameController,
-            decoration: const InputDecoration(
-              labelText: 'Full Name',
-              hintText: 'Enter your full name',
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              labelText: l10n.fullName,
+              hintText: l10n.nameHint,
+              border: const OutlineInputBorder(),
             ),
             validator: (value) {
               if (value == null || value.trim().isEmpty) {
-                return 'Please enter your name';
+                return l10n.pleaseEnterName;
               }
               if (value.trim().length < 2) {
-                return 'Name is too short';
+                return l10n.nameTooShort;
               }
               return null;
             },
@@ -321,19 +331,19 @@ class _CheckoutPageState extends State<CheckoutPage> {
           const SizedBox(height: AppSpacing.md),
           TextFormField(
             controller: _phoneController,
-            decoration: const InputDecoration(
-              labelText: 'Phone Number',
-              hintText: '+963 900 000 000',
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              labelText: l10n.phoneNumber,
+              hintText: l10n.phoneHint,
+              border: const OutlineInputBorder(),
             ),
             keyboardType: TextInputType.phone,
             validator: (value) {
               if (value == null || value.trim().isEmpty) {
-                return 'Please enter your phone number';
+                return l10n.pleaseEnterPhone;
               }
               const phoneRegex = r'^\+?[\d\s-]{10,}$';
               if (!RegExp(phoneRegex).hasMatch(value.trim())) {
-                return 'Please enter a valid phone number';
+                return l10n.invalidPhoneNumber;
               }
               return null;
             },
@@ -341,18 +351,18 @@ class _CheckoutPageState extends State<CheckoutPage> {
           const SizedBox(height: AppSpacing.md),
           TextFormField(
             controller: _addressController,
-            decoration: const InputDecoration(
-              labelText: 'Delivery Address',
-              hintText: 'Enter your delivery address',
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              labelText: l10n.deliveryAddress,
+              hintText: l10n.deliveryAddressHint,
+              border: const OutlineInputBorder(),
             ),
             maxLines: 3,
             validator: (value) {
               if (value == null || value.trim().isEmpty) {
-                return 'Please enter your delivery address';
+                return l10n.pleaseEnterAddress;
               }
               if (value.trim().length < 10) {
-                return 'Address is too short';
+                return l10n.addressTooShort;
               }
               return null;
             },
@@ -361,17 +371,18 @@ class _CheckoutPageState extends State<CheckoutPage> {
       ),
     );
   }
-  
+
   Widget _buildAddressSelector() {
+    final l10n = AppLocalizations.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (_addressViewModel.addresses.length > 1)
           DropdownButtonFormField<AddressModel>(
             value: _selectedAddress,
-            decoration: const InputDecoration(
-              labelText: 'Select Address',
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              labelText: l10n.selectAddress,
+              border: const OutlineInputBorder(),
             ),
             items: _addressViewModel.addresses.map((address) {
               return DropdownMenuItem<AddressModel>(
@@ -437,7 +448,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                           color: AppColors.gray,
                         ),
                         maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
@@ -459,7 +470,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
             }
           },
           icon: const Icon(Icons.add, size: 16),
-          label: const Text('Add new address'),
+          label: Text(l10n.addNewAddress),
           style: TextButton.styleFrom(
             foregroundColor: AppColors.primary,
           ),
@@ -467,17 +478,18 @@ class _CheckoutPageState extends State<CheckoutPage> {
       ],
     );
   }
-  
+
   Widget _buildOrderSummary() {
+    final l10n = AppLocalizations.of(context);
     return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Order Summary',
+            l10n.orderSummary,
             style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-              color: AppColors.darkNavy,
-            ),
+                  color: AppColors.darkNavy,
+                ),
           ),
           const SizedBox(height: AppSpacing.md),
           ..._cartViewModel.cart!.items.map((item) {
@@ -491,32 +503,35 @@ class _CheckoutPageState extends State<CheckoutPage> {
                       children: [
                         Text(
                           item.product.name,
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: AppColors.darkNavy,
-                          ),
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: AppColors.darkNavy,
+                                  ),
                         ),
                         Text(
-                          '${item.variant.color ?? ''} ${item.variant.size ?? ''}'.trim(),
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: AppColors.gray,
-                          ),
+                          '${item.variant.color ?? ''} ${item.variant.size ?? ''}'
+                              .trim(),
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: AppColors.gray,
+                                  ),
                         ),
                       ],
                     ),
                   ),
                   Text(
-                    'x${item.quantity}',
+                    l10n.quantity(item.quantity),
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppColors.gray,
-                    ),
+                          color: AppColors.gray,
+                        ),
                   ),
                   const SizedBox(width: AppSpacing.sm),
                   Text(
                     item.subtotal.toStringAsFixed(2),
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppColors.darkNavy,
-                      fontWeight: FontWeight.w600,
-                    ),
+                          color: AppColors.darkNavy,
+                          fontWeight: FontWeight.w600,
+                        ),
                   ),
                 ],
               ),
@@ -527,16 +542,16 @@ class _CheckoutPageState extends State<CheckoutPage> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Subtotal',
+                l10n.subtotal,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppColors.gray,
-                ),
+                      color: AppColors.gray,
+                    ),
               ),
               Text(
                 _cartViewModel.subtotal.toStringAsFixed(2),
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppColors.darkNavy,
-                ),
+                      color: AppColors.darkNavy,
+                    ),
               ),
             ],
           ),
@@ -545,16 +560,16 @@ class _CheckoutPageState extends State<CheckoutPage> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Delivery Fee',
+                l10n.deliveryFee,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppColors.gray,
-                ),
+                      color: AppColors.gray,
+                    ),
               ),
               Text(
                 '5.00',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppColors.darkNavy,
-                ),
+                      color: AppColors.darkNavy,
+                    ),
               ),
             ],
           ),
@@ -563,18 +578,18 @@ class _CheckoutPageState extends State<CheckoutPage> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Total',
+                l10n.total,
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  color: AppColors.darkNavy,
-                  fontWeight: FontWeight.bold,
-                ),
+                      color: AppColors.darkNavy,
+                      fontWeight: FontWeight.bold,
+                    ),
               ),
               Text(
                 (_cartViewModel.total + 5.00).toStringAsFixed(2),
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.bold,
-                ),
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.bold,
+                    ),
               ),
             ],
           ),
@@ -582,17 +597,18 @@ class _CheckoutPageState extends State<CheckoutPage> {
       ),
     );
   }
-  
+
   Widget _buildPaymentSection() {
+    final l10n = AppLocalizations.of(context);
     return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Payment Method',
+            l10n.paymentMethod,
             style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-              color: AppColors.darkNavy,
-            ),
+                  color: AppColors.darkNavy,
+                ),
           ),
           const SizedBox(height: AppSpacing.md),
           Container(
@@ -618,18 +634,18 @@ class _CheckoutPageState extends State<CheckoutPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Cash on Delivery',
+                        l10n.cashOnDelivery,
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: AppColors.darkNavy,
-                          fontWeight: FontWeight.bold,
-                        ),
+                              color: AppColors.darkNavy,
+                              fontWeight: FontWeight.bold,
+                            ),
                       ),
                       const SizedBox(height: AppSpacing.xs),
                       Text(
-                        'Pay when your order is delivered',
+                        l10n.payOnDeliveryDescription,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppColors.gray,
-                        ),
+                              color: AppColors.gray,
+                            ),
                       ),
                     ],
                   ),
@@ -641,10 +657,11 @@ class _CheckoutPageState extends State<CheckoutPage> {
       ),
     );
   }
-  
+
   Widget _buildPlaceOrderButton() {
+    final l10n = AppLocalizations.of(context);
     return AppButton(
-      text: _isPlacingOrder ? 'Placing Order...' : 'Place Order',
+      text: _isPlacingOrder ? l10n.placingOrder : l10n.placeOrder,
       type: AppButtonType.primary,
       isFullWidth: true,
       isLoading: _isPlacingOrder,

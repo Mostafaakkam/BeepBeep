@@ -14,6 +14,8 @@ class Product {
   final List<ProductVariant> variants;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final double averageRating;
+  final int reviewCount;
 
   Product({
     required this.id,
@@ -28,6 +30,8 @@ class Product {
     required this.variants,
     required this.createdAt,
     required this.updatedAt,
+    this.averageRating = 0.0,
+    this.reviewCount = 0,
   });
 
   factory Product.fromJson(Map<String, dynamic> json) {
@@ -47,6 +51,8 @@ class Product {
       variants: variantsList.map((variant) => ProductVariant.fromJson(variant as Map<String, dynamic>)).toList(),
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),
+      averageRating: (json['average_rating'] as num?)?.toDouble() ?? 0.0,
+      reviewCount: (json['review_count'] as num?)?.toInt() ?? 0,
     );
   }
 
@@ -64,6 +70,8 @@ class Product {
       'variants': variants.map((variant) => variant.toJson()).toList(),
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
+      'average_rating': averageRating,
+      'review_count': reviewCount,
     };
   }
 

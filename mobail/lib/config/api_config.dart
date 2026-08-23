@@ -9,6 +9,7 @@ class ApiConfig {
   static const String stores = '/stores';
   static const String products = '/products';
   static const String cart = '/cart';
+  static const String cartSwitchStore = '/cart/switch-store';
   static const String orders = '/orders';
   static const String search = '/search';
   static const String favorites = '/favorites';

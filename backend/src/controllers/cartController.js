@@ -67,10 +67,79 @@ const addItem = async (req, res) => {
       });
     }
 
+    // Single-Store Cart Rule: machine-readable conflict response so the
+    // Flutter client can show a "clear cart and switch stores?" confirmation
+    // instead of a generic error. `code` and `data` are additive fields on
+    // top of the existing success/message response shape.
+    if (error.code === 'STORE_MISMATCH') {
+      return res.status(409).json({
+        success: false,
+        message: 'Your cart contains items from another store',
+        code: 'STORE_MISMATCH',
+        data: error.data
+      });
+    }
+
     console.error('Add item error:', error.message);
     res.status(500).json({
       success: false,
       message: 'Failed to add item to cart'
+    });
+  }
+};
+
+const switchStore = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { product_id, variant_id, quantity } = req.body;
+
+    const result = await cartService.switchStore(userId, product_id, variant_id, quantity);
+
+    res.status(200).json({
+      success: true,
+      message: 'Cart switched to the new store successfully',
+      data: result
+    });
+  } catch (error) {
+    if (error.code === 'INVALID_INPUT') {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid input data'
+      });
+    }
+
+    if (error.code === 'PRODUCT_NOT_FOUND') {
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found'
+      });
+    }
+
+    if (error.code === 'VARIANT_NOT_FOUND') {
+      return res.status(404).json({
+        success: false,
+        message: 'Variant not found'
+      });
+    }
+
+    if (error.code === 'INVALID_VARIANT') {
+      return res.status(400).json({
+        success: false,
+        message: 'Variant does not belong to this product'
+      });
+    }
+
+    if (error.code === 'INSUFFICIENT_STOCK') {
+      return res.status(400).json({
+        success: false,
+        message: 'Insufficient stock available'
+      });
+    }
+
+    console.error('Switch cart store error:', error.message);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to switch cart store'
     });
   }
 };
@@ -172,6 +241,7 @@ const clearCart = async (req, res) => {
 module.exports = {
   getCart,
   addItem,
+  switchStore,
   updateItemQuantity,
   removeItem,
   clearCart

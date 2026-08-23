@@ -1,32 +1,33 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/widgets/app_widgets.dart';
+import '../../../../l10n/generated/app_localizations.dart';
 import '../viewmodels/order_viewmodel.dart';
 import '../../../../data/models/models.dart';
 import 'order_details_page.dart';
 
 class OrdersPage extends StatefulWidget {
   const OrdersPage({super.key});
-  
+
   @override
   State<OrdersPage> createState() => _OrdersPageState();
 }
 
 class _OrdersPageState extends State<OrdersPage> {
   final OrderViewModel _viewModel = OrderViewModel();
-  
+
   @override
   void initState() {
     super.initState();
     _viewModel.loadOrders();
   }
-  
+
   @override
   void dispose() {
     _viewModel.dispose();
     super.dispose();
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -42,8 +43,9 @@ class _OrdersPageState extends State<OrdersPage> {
       ),
     );
   }
-  
+
   Widget _buildHeader() {
+    final l10n = AppLocalizations.of(context);
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
@@ -59,13 +61,16 @@ class _OrdersPageState extends State<OrdersPage> {
       child: Row(
         children: [
           IconButton(
-            icon: const Icon(Icons.arrow_back),
+            icon: const Icon(
+              Icons.arrow_back,
+            ),
+            tooltip: l10n.goBack,
             onPressed: () => Navigator.of(context).pop(),
           ),
-          const Expanded(
+          Expanded(
             child: Text(
-              'My Orders',
-              style: TextStyle(
+              l10n.myOrders,
+              style: const TextStyle(
                 color: AppColors.darkNavy,
                 fontWeight: FontWeight.bold,
                 fontSize: 18,
@@ -76,7 +81,7 @@ class _OrdersPageState extends State<OrdersPage> {
       ),
     );
   }
-  
+
   Widget _buildContent() {
     return ListenableBuilder(
       listenable: _viewModel,
@@ -84,20 +89,20 @@ class _OrdersPageState extends State<OrdersPage> {
         if (_viewModel.isLoading) {
           return _buildLoadingState();
         }
-        
+
         if (_viewModel.isError) {
           return _buildErrorState();
         }
-        
+
         if (!_viewModel.hasOrders) {
           return _buildEmptyState();
         }
-        
+
         return _buildOrdersList();
       },
     );
   }
-  
+
   Widget _buildLoadingState() {
     return const Center(
       child: CircularProgressIndicator(
@@ -105,8 +110,9 @@ class _OrdersPageState extends State<OrdersPage> {
       ),
     );
   }
-  
+
   Widget _buildErrorState() {
+    final l10n = AppLocalizations.of(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
@@ -120,15 +126,15 @@ class _OrdersPageState extends State<OrdersPage> {
             ),
             const SizedBox(height: AppSpacing.md),
             Text(
-              _viewModel.errorMessage ?? 'Failed to load orders',
+              _viewModel.errorMessage ?? l10n.failedToLoadOrders,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppColors.gray,
-              ),
+                    color: AppColors.gray,
+                  ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: AppSpacing.lg),
             AppButton(
-              text: 'Retry',
+              text: l10n.retry,
               type: AppButtonType.primary,
               onPressed: _viewModel.retry,
             ),
@@ -137,8 +143,9 @@ class _OrdersPageState extends State<OrdersPage> {
       ),
     );
   }
-  
+
   Widget _buildEmptyState() {
+    final l10n = AppLocalizations.of(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
@@ -152,24 +159,24 @@ class _OrdersPageState extends State<OrdersPage> {
             ),
             const SizedBox(height: AppSpacing.md),
             Text(
-              'No orders yet',
+              l10n.noOrders,
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                color: AppColors.darkNavy,
-              ),
+                    color: AppColors.darkNavy,
+                  ),
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
-              'Start shopping to place your first order',
+              l10n.noOrdersSubtitle,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppColors.gray,
-              ),
+                    color: AppColors.gray,
+                  ),
             ),
           ],
         ),
       ),
     );
   }
-  
+
   Widget _buildOrdersList() {
     return ListView.builder(
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -179,8 +186,9 @@ class _OrdersPageState extends State<OrdersPage> {
       },
     );
   }
-  
+
   Widget _buildOrderCard(Order order) {
+    final l10n = AppLocalizations.of(context);
     return AppCard(
       margin: const EdgeInsets.only(bottom: AppSpacing.md),
       child: InkWell(
@@ -200,11 +208,11 @@ class _OrdersPageState extends State<OrdersPage> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Order #${order.id}',
+                    l10n.orderIdHeading(order.id),
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppColors.darkNavy,
-                      fontWeight: FontWeight.bold,
-                    ),
+                          color: AppColors.darkNavy,
+                          fontWeight: FontWeight.bold,
+                        ),
                   ),
                   _buildStatusChip(order.status),
                 ],
@@ -213,8 +221,8 @@ class _OrdersPageState extends State<OrdersPage> {
               Text(
                 _formatDate(order.createdAt),
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.gray,
-                ),
+                      color: AppColors.gray,
+                    ),
               ),
               const SizedBox(height: AppSpacing.md),
               Row(
@@ -223,15 +231,15 @@ class _OrdersPageState extends State<OrdersPage> {
                   Text(
                     order.formattedPaymentMethod,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.gray,
-                    ),
+                          color: AppColors.gray,
+                        ),
                   ),
                   Text(
                     order.total.toStringAsFixed(2),
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.bold,
-                    ),
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
                   ),
                 ],
               ),
@@ -241,11 +249,11 @@ class _OrdersPageState extends State<OrdersPage> {
       ),
     );
   }
-  
+
   Widget _buildStatusChip(String status) {
     Color backgroundColor;
     Color textColor;
-    
+
     switch (status) {
       case 'pending':
         backgroundColor = AppColors.warning.withOpacity(0.2);
@@ -272,7 +280,7 @@ class _OrdersPageState extends State<OrdersPage> {
         backgroundColor = AppColors.gray.withOpacity(0.2);
         textColor = AppColors.gray;
     }
-    
+
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.sm,
@@ -285,32 +293,33 @@ class _OrdersPageState extends State<OrdersPage> {
       child: Text(
         _formatStatus(status),
         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-          color: textColor,
-          fontWeight: FontWeight.w600,
-        ),
+              color: textColor,
+              fontWeight: FontWeight.w600,
+            ),
       ),
     );
   }
-  
+
   String _formatStatus(String status) {
+    final l10n = AppLocalizations.of(context);
     switch (status) {
       case 'pending':
-        return 'Pending';
+        return l10n.pending;
       case 'confirmed':
-        return 'Confirmed';
+        return l10n.confirmed;
       case 'preparing':
-        return 'Preparing';
+        return l10n.preparing;
       case 'shipped':
-        return 'Shipped';
+        return l10n.shipped;
       case 'delivered':
-        return 'Delivered';
+        return l10n.delivered;
       case 'cancelled':
-        return 'Cancelled';
+        return l10n.cancelled;
       default:
         return status;
     }
   }
-  
+
   String _formatDate(DateTime date) {
     return '${date.day}/${date.month}/${date.year}';
   }

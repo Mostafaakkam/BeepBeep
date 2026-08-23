@@ -1,36 +1,37 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/widgets/app_widgets.dart';
+import '../../../../l10n/generated/app_localizations.dart';
 import '../viewmodels/order_viewmodel.dart';
 import '../../../../data/models/models.dart';
 
 class OrderDetailsPage extends StatefulWidget {
   final int orderId;
-  
+
   const OrderDetailsPage({
     super.key,
     required this.orderId,
   });
-  
+
   @override
   State<OrderDetailsPage> createState() => _OrderDetailsPageState();
 }
 
 class _OrderDetailsPageState extends State<OrderDetailsPage> {
   final OrderViewModel _viewModel = OrderViewModel();
-  
+
   @override
   void initState() {
     super.initState();
     _viewModel.loadOrderById(widget.orderId);
   }
-  
+
   @override
   void dispose() {
     _viewModel.dispose();
     super.dispose();
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -46,8 +47,9 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
       ),
     );
   }
-  
+
   Widget _buildHeader() {
+    final l10n = AppLocalizations.of(context);
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
@@ -63,13 +65,16 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
       child: Row(
         children: [
           IconButton(
-            icon: const Icon(Icons.arrow_back),
+            icon: const Icon(
+              Icons.arrow_back,
+            ),
+            tooltip: l10n.goBack,
             onPressed: () => Navigator.of(context).pop(),
           ),
-          const Expanded(
+          Expanded(
             child: Text(
-              'Order Details',
-              style: TextStyle(
+              l10n.orderDetails,
+              style: const TextStyle(
                 color: AppColors.darkNavy,
                 fontWeight: FontWeight.bold,
                 fontSize: 18,
@@ -80,7 +85,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
       ),
     );
   }
-  
+
   Widget _buildContent() {
     return ListenableBuilder(
       listenable: _viewModel,
@@ -88,20 +93,20 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
         if (_viewModel.isLoading) {
           return _buildLoadingState();
         }
-        
+
         if (_viewModel.isError) {
           return _buildErrorState();
         }
-        
+
         if (_viewModel.selectedOrder == null) {
           return _buildEmptyState();
         }
-        
+
         return _buildOrderDetails(_viewModel.selectedOrder!);
       },
     );
   }
-  
+
   Widget _buildLoadingState() {
     return const Center(
       child: CircularProgressIndicator(
@@ -109,8 +114,9 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
       ),
     );
   }
-  
+
   Widget _buildErrorState() {
+    final l10n = AppLocalizations.of(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
@@ -124,15 +130,15 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
             ),
             const SizedBox(height: AppSpacing.md),
             Text(
-              _viewModel.errorMessage ?? 'Failed to load order',
+              _viewModel.errorMessage ?? l10n.failedToLoadOrder,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppColors.gray,
-              ),
+                    color: AppColors.gray,
+                  ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: AppSpacing.lg),
             AppButton(
-              text: 'Retry',
+              text: l10n.retry,
               type: AppButtonType.primary,
               onPressed: () => _viewModel.loadOrderById(widget.orderId),
             ),
@@ -141,19 +147,20 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
       ),
     );
   }
-  
+
   Widget _buildEmptyState() {
-    return const Center(
+    final l10n = AppLocalizations.of(context);
+    return Center(
       child: Text(
-        'Order not found',
-        style: TextStyle(
+        l10n.orderNotFound,
+        style: const TextStyle(
           color: AppColors.darkNavy,
           fontSize: 18,
         ),
       ),
     );
   }
-  
+
   Widget _buildOrderDetails(Order order) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -177,81 +184,85 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
       ),
     );
   }
-  
+
   Widget _buildOrderInfo(Order order) {
+    final l10n = AppLocalizations.of(context);
     return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Order Information',
+            l10n.orderInformation,
             style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-              color: AppColors.darkNavy,
-            ),
+                  color: AppColors.darkNavy,
+                ),
           ),
           const SizedBox(height: AppSpacing.md),
-          _buildInfoRow('Order Number', '#${order.id}'),
+          _buildInfoRow(l10n.orderNumber, '#${order.id}'),
           const Divider(),
-          _buildInfoRow('Status', order.formattedStatus),
+          _buildInfoRow(l10n.orderStatus, order.formattedStatus),
           const Divider(),
-          _buildInfoRow('Order Date', _formatDate(order.createdAt)),
+          _buildInfoRow(l10n.orderDate, _formatDate(order.createdAt)),
         ],
       ),
     );
   }
-  
+
   Widget _buildCustomerInfo(Order order) {
+    final l10n = AppLocalizations.of(context);
     return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Customer Information',
+            l10n.customerInformation,
             style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-              color: AppColors.darkNavy,
-            ),
+                  color: AppColors.darkNavy,
+                ),
           ),
           const SizedBox(height: AppSpacing.md),
-          _buildInfoRow('Name', order.customerName),
+          _buildInfoRow(l10n.name, order.customerName),
           const Divider(),
-          _buildInfoRow('Phone', order.customerPhone),
+          _buildInfoRow(l10n.phone, order.customerPhone),
           const Divider(),
-          _buildInfoRow('Delivery Address', order.deliveryAddress),
+          _buildInfoRow(l10n.deliveryAddress, order.deliveryAddress),
         ],
       ),
     );
   }
-  
+
   Widget _buildPaymentInfo(Order order) {
+    final l10n = AppLocalizations.of(context);
     return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Payment Information',
+            l10n.paymentInformation,
             style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-              color: AppColors.darkNavy,
-            ),
+                  color: AppColors.darkNavy,
+                ),
           ),
           const SizedBox(height: AppSpacing.md),
-          _buildInfoRow('Payment Method', order.formattedPaymentMethod),
+          _buildInfoRow(l10n.paymentMethod, order.formattedPaymentMethod),
           const Divider(),
-          _buildInfoRow('Payment Status', order.formattedPaymentStatus),
+          _buildInfoRow(l10n.paymentStatus, order.formattedPaymentStatus),
         ],
       ),
     );
   }
-  
+
   Widget _buildOrderItems(Order order) {
+    final l10n = AppLocalizations.of(context);
     return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Order Items',
+            l10n.orderItems,
             style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-              color: AppColors.darkNavy,
-            ),
+                  color: AppColors.darkNavy,
+                ),
           ),
           const SizedBox(height: AppSpacing.md),
           ...order.items!.map((item) {
@@ -265,46 +276,49 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
                       children: [
                         Text(
                           item.productName,
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: AppColors.darkNavy,
-                            fontWeight: FontWeight.w600,
-                          ),
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: AppColors.darkNavy,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                         ),
                         if (item.variantName.isNotEmpty) ...[
                           const SizedBox(height: AppSpacing.xs),
                           Text(
                             item.variantName,
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AppColors.gray,
-                            ),
+                            style:
+                                Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: AppColors.gray,
+                                    ),
                           ),
                         ],
                         if (item.storeName != null) ...[
                           const SizedBox(height: AppSpacing.xs),
                           Text(
                             item.storeName!,
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AppColors.gray,
-                                fontSize: 11,
-                            ),
+                            style:
+                                Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: AppColors.gray,
+                                      fontSize: 11,
+                                    ),
                           ),
                         ],
                       ],
                     ),
                   ),
                   Text(
-                    'x${item.quantity}',
+                    l10n.quantity(item.quantity),
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppColors.gray,
-                    ),
+                          color: AppColors.gray,
+                        ),
                   ),
                   const SizedBox(width: AppSpacing.sm),
                   Text(
                     item.subtotal.toStringAsFixed(2),
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppColors.darkNavy,
-                      fontWeight: FontWeight.w600,
-                    ),
+                          color: AppColors.darkNavy,
+                          fontWeight: FontWeight.w600,
+                        ),
                   ),
                 ],
               ),
@@ -314,39 +328,40 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
       ),
     );
   }
-  
+
   Widget _buildOrderTotals(Order order) {
+    final l10n = AppLocalizations.of(context);
     return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Order Totals',
+            l10n.orderTotals,
             style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-              color: AppColors.darkNavy,
-            ),
+                  color: AppColors.darkNavy,
+                ),
           ),
           const SizedBox(height: AppSpacing.md),
-          _buildInfoRow('Subtotal', order.subtotal.toStringAsFixed(2)),
+          _buildInfoRow(l10n.subtotal, order.subtotal.toStringAsFixed(2)),
           const Divider(),
-          _buildInfoRow('Delivery Fee', order.deliveryFee.toStringAsFixed(2)),
+          _buildInfoRow(l10n.deliveryFee, order.deliveryFee.toStringAsFixed(2)),
           const Divider(),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Total',
+                l10n.total,
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  color: AppColors.darkNavy,
-                  fontWeight: FontWeight.bold,
-                ),
+                      color: AppColors.darkNavy,
+                      fontWeight: FontWeight.bold,
+                    ),
               ),
               Text(
                 order.total.toStringAsFixed(2),
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.bold,
-                ),
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.bold,
+                    ),
               ),
             ],
           ),
@@ -354,10 +369,11 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
       ),
     );
   }
-  
+
   Widget _buildCancelButton(Order order) {
+    final l10n = AppLocalizations.of(context);
     return AppButton(
-      text: 'Cancel Order',
+      text: l10n.cancelOrder,
       type: AppButtonType.secondary,
       isFullWidth: true,
       onPressed: _viewModel.isOperationInProgress
@@ -365,33 +381,35 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
           : () => _handleCancelOrder(order.id),
     );
   }
-  
+
   Future<void> _handleCancelOrder(int orderId) async {
+    final l10n = AppLocalizations.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Cancel Order'),
-        content: const Text('Are you sure you want to cancel this order?'),
+        title: Text(l10n.cancelOrder),
+        content: Text(l10n.cancelOrderConfirm),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('No'),
+            child: Text(l10n.no),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Yes, Cancel'),
+            child: Text(l10n.yesCancelOrder),
           ),
         ],
       ),
     );
-    
+
     if (confirmed == true) {
       try {
         await _viewModel.cancelOrder(orderId);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Order cancelled successfully'),
+            SnackBar(
+              content:
+                  Text(AppLocalizations.of(context).orderCancelledSuccess),
               backgroundColor: AppColors.success,
             ),
           );
@@ -401,8 +419,8 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Failed to cancel order'),
+            SnackBar(
+              content: Text(AppLocalizations.of(context).cancelOrderFailed),
               backgroundColor: AppColors.error,
             ),
           );
@@ -410,7 +428,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
       }
     }
   }
-  
+
   Widget _buildInfoRow(String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
@@ -420,24 +438,24 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
           Text(
             label,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: AppColors.gray,
-            ),
+                  color: AppColors.gray,
+                ),
           ),
           Expanded(
             child: Text(
               value,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppColors.darkNavy,
-                fontWeight: FontWeight.w500,
-              ),
-              textAlign: TextAlign.right,
+                    color: AppColors.darkNavy,
+                    fontWeight: FontWeight.w500,
+                  ),
+              textAlign: TextAlign.end,
             ),
           ),
         ],
       ),
     );
   }
-  
+
   String _formatDate(DateTime date) {
     return '${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
   }

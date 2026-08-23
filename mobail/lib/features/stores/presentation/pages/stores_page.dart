@@ -1,32 +1,33 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/widgets/app_widgets.dart';
+import '../../../../l10n/generated/app_localizations.dart';
 import '../viewmodels/store_viewmodel.dart';
 import '../../../../data/models/models.dart';
 import '../../../products/presentation/pages/products_page.dart';
 
 class StoresPage extends StatefulWidget {
   const StoresPage({super.key});
-  
+
   @override
   State<StoresPage> createState() => _StoresPageState();
 }
 
 class _StoresPageState extends State<StoresPage> {
   final StoreViewModel _viewModel = StoreViewModel();
-  
+
   @override
   void initState() {
     super.initState();
     _viewModel.loadStores();
   }
-  
+
   @override
   void dispose() {
     _viewModel.dispose();
     super.dispose();
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -42,8 +43,9 @@ class _StoresPageState extends State<StoresPage> {
       ),
     );
   }
-  
+
   Widget _buildHeader() {
+    final l10n = AppLocalizations.of(context);
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
@@ -57,7 +59,7 @@ class _StoresPageState extends State<StoresPage> {
         ],
       ),
       child: Text(
-        'Stores',
+        l10n.stores,
         style: Theme.of(context).textTheme.headlineMedium?.copyWith(
           color: AppColors.darkNavy,
           fontWeight: FontWeight.bold,
@@ -65,7 +67,7 @@ class _StoresPageState extends State<StoresPage> {
       ),
     );
   }
-  
+
   Widget _buildContent() {
     return ListenableBuilder(
       listenable: _viewModel,
@@ -73,20 +75,20 @@ class _StoresPageState extends State<StoresPage> {
         if (_viewModel.isLoading) {
           return _buildLoadingState();
         }
-        
+
         if (_viewModel.isError) {
           return _buildErrorState();
         }
-        
+
         if (_viewModel.isEmpty) {
           return _buildEmptyState();
         }
-        
+
         return _buildStoresList();
       },
     );
   }
-  
+
   Widget _buildLoadingState() {
     return const Center(
       child: CircularProgressIndicator(
@@ -94,8 +96,9 @@ class _StoresPageState extends State<StoresPage> {
       ),
     );
   }
-  
+
   Widget _buildErrorState() {
+    final l10n = AppLocalizations.of(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
@@ -109,7 +112,7 @@ class _StoresPageState extends State<StoresPage> {
             ),
             const SizedBox(height: AppSpacing.md),
             Text(
-              _viewModel.errorMessage ?? 'Failed to load stores',
+              _viewModel.errorMessage ?? l10n.failedToLoadStores,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: AppColors.gray,
               ),
@@ -117,7 +120,7 @@ class _StoresPageState extends State<StoresPage> {
             ),
             const SizedBox(height: AppSpacing.lg),
             AppButton(
-              text: 'Retry',
+              text: l10n.retry,
               type: AppButtonType.primary,
               onPressed: _viewModel.retry,
             ),
@@ -126,8 +129,9 @@ class _StoresPageState extends State<StoresPage> {
       ),
     );
   }
-  
+
   Widget _buildEmptyState() {
+    final l10n = AppLocalizations.of(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
@@ -141,14 +145,14 @@ class _StoresPageState extends State<StoresPage> {
             ),
             const SizedBox(height: AppSpacing.md),
             Text(
-              'No stores available',
+              l10n.noStores,
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                 color: AppColors.darkNavy,
               ),
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
-              'Check back later for new stores',
+              l10n.noStoresSubtitle,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: AppColors.gray,
               ),
@@ -158,7 +162,7 @@ class _StoresPageState extends State<StoresPage> {
       ),
     );
   }
-  
+
   Widget _buildStoresList() {
     return ListView.builder(
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -168,7 +172,7 @@ class _StoresPageState extends State<StoresPage> {
       },
     );
   }
-  
+
   Widget _buildStoreCard(Store store) {
     return GestureDetector(
       onTap: () {
