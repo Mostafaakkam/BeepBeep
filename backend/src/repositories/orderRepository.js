@@ -284,10 +284,91 @@ const findByStoreId = async (storeId, status) => {
   return orders;
 };
 
+// Store Owner Dashboard: order detail scoped to a store rather than a
+// customer. Sibling to findById() above (customer-scoped, WHERE user_id = ?)
+// -- this is WHERE store_id = ? instead, since the viewer here is the store
+// owner, not the customer who placed the order. storeId is never
+// client-trusted on its own; callers only reach this after
+// requireStoreOwnership has verified it (see routes/storeRoutes.js). Reuses
+// the same store-name resolution and item-mapping logic as findById().
+const findByIdForStore = async (id, storeId) => {
+  const [orders] = await pool.execute(
+    `SELECT id, user_id, store_id, status, payment_method, payment_status, subtotal, delivery_fee, total,
+            customer_name, customer_phone, delivery_address, created_at, updated_at
+     FROM orders
+     WHERE id = ? AND store_id = ?`,
+    [id, storeId]
+  );
+
+  if (orders.length === 0) return null;
+
+  const order = orders[0];
+
+  const [stores] = await pool.execute(
+    'SELECT name, address FROM stores WHERE id = ?',
+    [order.store_id]
+  );
+  const storeName = stores.length > 0 ? stores[0].name : null;
+  const storeAddress = stores.length > 0 ? stores[0].address : null;
+
+  const [items] = await pool.execute(
+    `SELECT oi.id, oi.product_id, oi.variant_id, oi.product_name, oi.variant_name,
+            oi.variant_color, oi.variant_size, oi.quantity, oi.unit_price, oi.subtotal
+     FROM order_items oi
+     WHERE oi.order_id = ?
+     ORDER BY oi.id ASC`,
+    [id]
+  );
+
+  order.items = items.map((item) => ({
+    ...item,
+    store_name: storeName,
+    store_address: storeAddress
+  }));
+
+  return order;
+};
+
+// Store Owner Dashboard: summary counts for the dashboard's status cards.
+// One indexed query (status is covered by idx_orders_store_id + the
+// existing status column) rather than 5 separate COUNT queries.
+const countByStoreIdGroupedByStatus = async (storeId) => {
+  const [rows] = await pool.execute(
+    'SELECT status, COUNT(*) as count FROM orders WHERE store_id = ? GROUP BY status',
+    [storeId]
+  );
+  const counts = {};
+  for (const row of rows) {
+    counts[row.status] = row.count;
+  }
+  return counts;
+};
+
+// Store Owner Dashboard: validated order-status transition. The service
+// layer (orderService.updateOrderStatus) computes `expectedCurrentStatus`
+// from the transition map and is the single source of truth for which
+// transitions are valid -- this repository function only executes the
+// already-validated change, but still guards it with
+// `WHERE status = ?` as a second, atomic line of defense: if the order's
+// status changed between the service's read and this write (a race), the
+// UPDATE simply matches zero rows instead of clobbering a status the caller
+// never actually observed. affectedRows === 0 tells the service "the
+// transition is no longer valid" without a second round-trip.
+const updateStatus = async (orderId, storeId, newStatus, expectedCurrentStatus) => {
+  const [result] = await pool.execute(
+    'UPDATE orders SET status = ?, updated_at = NOW() WHERE id = ? AND store_id = ? AND status = ?',
+    [newStatus, orderId, storeId, expectedCurrentStatus]
+  );
+  return result.affectedRows > 0;
+};
+
 module.exports = {
   findByUserId,
   findById,
+  findByIdForStore,
   findByStoreId,
+  countByStoreIdGroupedByStatus,
+  updateStatus,
   createOrder,
   cancelOrder,
   DELIVERY_FEE

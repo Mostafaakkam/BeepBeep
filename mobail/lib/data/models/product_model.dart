@@ -16,6 +16,15 @@ class Product {
   final DateTime updatedAt;
   final double averageRating;
   final int reviewCount;
+  // Store Owner Dashboard: only present on the owner's own product list
+  // (GET /api/stores/:storeId/products -- see
+  // productRepository.findByStoreIdForOwner) which deliberately includes
+  // deactivated products so an owner can still see/reactivate them. The
+  // public product endpoints (findAll/findById) already filter is_active = 1
+  // server-side and never send this field, so it defaults to true there --
+  // every existing customer-facing call site that never reads it is
+  // unaffected.
+  final bool isActive;
 
   Product({
     required this.id,
@@ -32,6 +41,7 @@ class Product {
     required this.updatedAt,
     this.averageRating = 0.0,
     this.reviewCount = 0,
+    this.isActive = true,
   });
 
   factory Product.fromJson(Map<String, dynamic> json) {
@@ -53,6 +63,7 @@ class Product {
       updatedAt: DateTime.parse(json['updated_at'] as String),
       averageRating: (json['average_rating'] as num?)?.toDouble() ?? 0.0,
       reviewCount: (json['review_count'] as num?)?.toInt() ?? 0,
+      isActive: json['is_active'] == null ? true : json['is_active'] == 1 || json['is_active'] == true,
     );
   }
 
@@ -72,6 +83,7 @@ class Product {
       'updated_at': updatedAt.toIso8601String(),
       'average_rating': averageRating,
       'review_count': reviewCount,
+      'is_active': isActive,
     };
   }
 

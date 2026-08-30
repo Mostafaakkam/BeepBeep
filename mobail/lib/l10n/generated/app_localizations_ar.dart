@@ -2,7 +2,7 @@ import 'app_localizations.dart';
 
 /// The translations for Arabic (`ar`).
 class AppLocalizationsAr extends AppLocalizations {
-  AppLocalizationsAr([super.locale = 'ar']);
+  AppLocalizationsAr([String locale = 'ar']) : super(locale);
 
   @override
   String get appName => 'بيب بيب';
@@ -789,4 +789,204 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get seeAllStores => 'عرض الكل';
+
+  @override
+  String get writeAReview => 'اكتب تقييماً';
+
+  @override
+  String get editYourReview => 'تعديل تقييمك';
+
+  @override
+  String get yourReview => 'تقييمك';
+
+  @override
+  String get yourRating => 'تقييمك';
+
+  @override
+  String get yourReviewOptional => 'تقييمك (اختياري)';
+
+  @override
+  String get reviewCommentHint => 'شارك رأيك حول هذا المنتج...';
+
+  @override
+  String get submitReview => 'إرسال التقييم';
+
+  @override
+  String get pleaseSelectRating => 'يرجى اختيار تقييم';
+
+  @override
+  String get reviewSubmitFailed => 'فشل إرسال التقييم. يرجى المحاولة مرة أخرى.';
+
+  @override
+  String get reviewSubmittedSuccess => 'تم إرسال التقييم';
+
+  @override
+  String get reviewUpdatedSuccess => 'تم تحديث التقييم';
+
+  @override
+  String get reviewDeletedSuccess => 'تم حذف التقييم';
+
+  @override
+  String get reviewDeleteFailed => 'فشل حذف التقييم. يرجى المحاولة مرة أخرى.';
+
+  @override
+  String get deleteReviewTitle => 'حذف التقييم';
+
+  @override
+  String get deleteReviewConfirmMessage => 'هل أنت متأكد من حذف تقييمك؟';
+
+  @override
+  String get loginToReviewMessage => 'سجّل الدخول لكتابة تقييم لهذا المنتج';
+
+  @override
+  String get purchaseRequiredMessage => 'يمكن فقط للعملاء الذين اشتروا واستلموا هذا المنتج ترك تقييم';
+
+  @override
+  String reviewCountLabel(int count) {
+    return '($count تقييم)';
+  }
+
+  @override
+  String get allReviews => 'جميع التقييمات';
+
+  @override
+  String get ratingAverage => 'متوسط التقييم';
+
+  @override
+  String get storeOwnerDashboard => 'لوحة تحكم صاحب المتجر';
+
+  @override
+  String get dashboard => 'لوحة التحكم';
+
+  @override
+  String get noOwnedStores => 'لا توجد متاجر بعد';
+
+  @override
+  String get noOwnedStoresMessage => 'لا تملك أي متجر حتى الآن';
+
+  @override
+  String get storeStatusActive => 'نشط';
+
+  @override
+  String get storeStatusInactive => 'غير نشط';
+
+  @override
+  String get selectAStoreFirst => 'يرجى اختيار متجر أولاً';
+
+  @override
+  String get noOwnedProducts => 'لا توجد منتجات بعد';
+
+  @override
+  String get noOwnedProductsMessage => 'أضف منتجك الأول للبدء';
+
+  @override
+  String get deactivateProduct => 'إلغاء تفعيل المنتج';
+
+  @override
+  String deactivateProductConfirm(String name) {
+    return 'هل أنت متأكد أنك تريد إلغاء تفعيل \"$name\"؟';
+  }
+
+  @override
+  String get productDeactivatedSuccess => 'تم إلغاء تفعيل المنتج';
+
+  @override
+  String get productDeactivateFailed => 'فشل إلغاء تفعيل المنتج. يرجى المحاولة مرة أخرى.';
+
+  @override
+  String get inactiveLabel => 'غير نشط';
+
+  @override
+  String get addProduct => 'إضافة منتج';
+
+  @override
+  String get editProduct => 'تعديل المنتج';
+
+  @override
+  String storeLabel(String name) {
+    return 'المتجر: $name';
+  }
+
+  @override
+  String get productNameRequired => 'اسم المنتج مطلوب';
+
+  @override
+  String get pleaseSelectCategory => 'يرجى اختيار فئة';
+
+  @override
+  String get atLeastOneVariantRequired => 'مطلوب متغير واحد على الأقل';
+
+  @override
+  String get invalidVariantPrice => 'يرجى إدخال سعر صحيح';
+
+  @override
+  String get invalidVariantStock => 'يرجى إدخال كمية مخزون صحيحة';
+
+  @override
+  String get existingVariantsCannotBeRemoved => 'لا يمكن إزالة المتغيرات الحالية من هنا';
+
+  @override
+  String get addVariant => 'إضافة متغير';
+
+  @override
+  String get imageUrlsHint => 'أدخل رابط صورة واحد في كل سطر';
+
+  @override
+  String get saveProduct => 'حفظ المنتج';
+
+  @override
+  String get category => 'الفئة';
+
+  @override
+  String get selectCategory => 'اختر فئة';
+
+  @override
+  String get productCreatedSuccess => 'تم إنشاء المنتج';
+
+  @override
+  String get productUpdatedSuccess => 'تم تحديث المنتج';
+
+  @override
+  String get productCreateFailed => 'فشل إنشاء المنتج. يرجى المحاولة مرة أخرى.';
+
+  @override
+  String get productUpdateFailed => 'فشل تحديث المنتج. يرجى المحاولة مرة أخرى.';
+
+  @override
+  String get noOwnedOrders => 'لا توجد طلبات بعد';
+
+  @override
+  String get noOwnedOrdersMessage => 'ستظهر طلبات هذا المتجر هنا';
+
+  @override
+  String markOrderAs(String status) {
+    return 'تحديد كـ $status';
+  }
+
+  @override
+  String get orderStatusUpdatedSuccess => 'تم تحديث حالة الطلب';
+
+  @override
+  String get orderStatusUpdateFailed => 'فشل تحديث حالة الطلب. يرجى المحاولة مرة أخرى.';
+
+  @override
+  String get storeOwnerWelcome => 'مرحباً بعودتك!';
+
+  @override
+  String get currentlyManaging => 'تدير حالياً';
+
+  @override
+  String get switchStore => 'تبديل';
+
+  @override
+  String get totalProducts => 'إجمالي المنتجات';
+
+  @override
+  String get quickActions => 'إجراءات سريعة';
+
+  @override
+  String get manageProducts => 'إدارة المنتجات';
+
+  @override
+  String get viewOrders => 'عرض الطلبات';
 }

@@ -1628,6 +1628,390 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'See all'**
   String get seeAllStores;
+
+  /// No description provided for @writeAReview.
+  ///
+  /// In en, this message translates to:
+  /// **'Write a Review'**
+  String get writeAReview;
+
+  /// No description provided for @editYourReview.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Your Review'**
+  String get editYourReview;
+
+  /// No description provided for @yourReview.
+  ///
+  /// In en, this message translates to:
+  /// **'Your Review'**
+  String get yourReview;
+
+  /// No description provided for @yourRating.
+  ///
+  /// In en, this message translates to:
+  /// **'Your Rating'**
+  String get yourRating;
+
+  /// No description provided for @yourReviewOptional.
+  ///
+  /// In en, this message translates to:
+  /// **'Your Review (optional)'**
+  String get yourReviewOptional;
+
+  /// No description provided for @reviewCommentHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Share your thoughts about this product...'**
+  String get reviewCommentHint;
+
+  /// No description provided for @submitReview.
+  ///
+  /// In en, this message translates to:
+  /// **'Submit Review'**
+  String get submitReview;
+
+  /// No description provided for @pleaseSelectRating.
+  ///
+  /// In en, this message translates to:
+  /// **'Please select a rating'**
+  String get pleaseSelectRating;
+
+  /// No description provided for @reviewSubmitFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to submit review. Please try again.'**
+  String get reviewSubmitFailed;
+
+  /// No description provided for @reviewSubmittedSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Review submitted'**
+  String get reviewSubmittedSuccess;
+
+  /// No description provided for @reviewUpdatedSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Review updated'**
+  String get reviewUpdatedSuccess;
+
+  /// No description provided for @reviewDeletedSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Review deleted'**
+  String get reviewDeletedSuccess;
+
+  /// No description provided for @reviewDeleteFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to delete review. Please try again.'**
+  String get reviewDeleteFailed;
+
+  /// No description provided for @deleteReviewTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Review'**
+  String get deleteReviewTitle;
+
+  /// No description provided for @deleteReviewConfirmMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to delete your review?'**
+  String get deleteReviewConfirmMessage;
+
+  /// No description provided for @loginToReviewMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Login to write a review for this product'**
+  String get loginToReviewMessage;
+
+  /// No description provided for @purchaseRequiredMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Only customers who purchased and received this product can leave a review'**
+  String get purchaseRequiredMessage;
+
+  /// No description provided for @reviewCountLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'({count} reviews)'**
+  String reviewCountLabel(int count);
+
+  /// No description provided for @allReviews.
+  ///
+  /// In en, this message translates to:
+  /// **'All Reviews'**
+  String get allReviews;
+
+  /// No description provided for @ratingAverage.
+  ///
+  /// In en, this message translates to:
+  /// **'Rating Average'**
+  String get ratingAverage;
+
+  /// No description provided for @storeOwnerDashboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Store Owner Dashboard'**
+  String get storeOwnerDashboard;
+
+  /// No description provided for @dashboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Dashboard'**
+  String get dashboard;
+
+  /// No description provided for @noOwnedStores.
+  ///
+  /// In en, this message translates to:
+  /// **'No Stores Yet'**
+  String get noOwnedStores;
+
+  /// No description provided for @noOwnedStoresMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'You don\'t own any stores yet'**
+  String get noOwnedStoresMessage;
+
+  /// No description provided for @storeStatusActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Active'**
+  String get storeStatusActive;
+
+  /// No description provided for @storeStatusInactive.
+  ///
+  /// In en, this message translates to:
+  /// **'Inactive'**
+  String get storeStatusInactive;
+
+  /// No description provided for @selectAStoreFirst.
+  ///
+  /// In en, this message translates to:
+  /// **'Please select a store first'**
+  String get selectAStoreFirst;
+
+  /// No description provided for @noOwnedProducts.
+  ///
+  /// In en, this message translates to:
+  /// **'No Products Yet'**
+  String get noOwnedProducts;
+
+  /// No description provided for @noOwnedProductsMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Add your first product to get started'**
+  String get noOwnedProductsMessage;
+
+  /// No description provided for @deactivateProduct.
+  ///
+  /// In en, this message translates to:
+  /// **'Deactivate Product'**
+  String get deactivateProduct;
+
+  /// No description provided for @deactivateProductConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to deactivate \"{name}\"?'**
+  String deactivateProductConfirm(String name);
+
+  /// No description provided for @productDeactivatedSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Product deactivated'**
+  String get productDeactivatedSuccess;
+
+  /// No description provided for @productDeactivateFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to deactivate product. Please try again.'**
+  String get productDeactivateFailed;
+
+  /// No description provided for @inactiveLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Inactive'**
+  String get inactiveLabel;
+
+  /// No description provided for @addProduct.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Product'**
+  String get addProduct;
+
+  /// No description provided for @editProduct.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Product'**
+  String get editProduct;
+
+  /// No description provided for @storeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Store: {name}'**
+  String storeLabel(String name);
+
+  /// No description provided for @productNameRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Product name is required'**
+  String get productNameRequired;
+
+  /// No description provided for @pleaseSelectCategory.
+  ///
+  /// In en, this message translates to:
+  /// **'Please select a category'**
+  String get pleaseSelectCategory;
+
+  /// No description provided for @atLeastOneVariantRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'At least one variant is required'**
+  String get atLeastOneVariantRequired;
+
+  /// No description provided for @invalidVariantPrice.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter a valid price'**
+  String get invalidVariantPrice;
+
+  /// No description provided for @invalidVariantStock.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter a valid stock quantity'**
+  String get invalidVariantStock;
+
+  /// No description provided for @existingVariantsCannotBeRemoved.
+  ///
+  /// In en, this message translates to:
+  /// **'Existing variants can\'t be removed here'**
+  String get existingVariantsCannotBeRemoved;
+
+  /// No description provided for @addVariant.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Variant'**
+  String get addVariant;
+
+  /// No description provided for @imageUrlsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter one image URL per line'**
+  String get imageUrlsHint;
+
+  /// No description provided for @saveProduct.
+  ///
+  /// In en, this message translates to:
+  /// **'Save Product'**
+  String get saveProduct;
+
+  /// No description provided for @category.
+  ///
+  /// In en, this message translates to:
+  /// **'Category'**
+  String get category;
+
+  /// No description provided for @selectCategory.
+  ///
+  /// In en, this message translates to:
+  /// **'Select a category'**
+  String get selectCategory;
+
+  /// No description provided for @productCreatedSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Product created'**
+  String get productCreatedSuccess;
+
+  /// No description provided for @productUpdatedSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Product updated'**
+  String get productUpdatedSuccess;
+
+  /// No description provided for @productCreateFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to create product. Please try again.'**
+  String get productCreateFailed;
+
+  /// No description provided for @productUpdateFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to update product. Please try again.'**
+  String get productUpdateFailed;
+
+  /// No description provided for @noOwnedOrders.
+  ///
+  /// In en, this message translates to:
+  /// **'No Orders Yet'**
+  String get noOwnedOrders;
+
+  /// No description provided for @noOwnedOrdersMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Orders for this store will appear here'**
+  String get noOwnedOrdersMessage;
+
+  /// No description provided for @markOrderAs.
+  ///
+  /// In en, this message translates to:
+  /// **'Mark as {status}'**
+  String markOrderAs(String status);
+
+  /// No description provided for @orderStatusUpdatedSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Order status updated'**
+  String get orderStatusUpdatedSuccess;
+
+  /// No description provided for @orderStatusUpdateFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to update order status. Please try again.'**
+  String get orderStatusUpdateFailed;
+
+  /// No description provided for @storeOwnerWelcome.
+  ///
+  /// In en, this message translates to:
+  /// **'Welcome back!'**
+  String get storeOwnerWelcome;
+
+  /// No description provided for @currentlyManaging.
+  ///
+  /// In en, this message translates to:
+  /// **'Currently managing'**
+  String get currentlyManaging;
+
+  /// No description provided for @switchStore.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch'**
+  String get switchStore;
+
+  /// No description provided for @totalProducts.
+  ///
+  /// In en, this message translates to:
+  /// **'Total Products'**
+  String get totalProducts;
+
+  /// No description provided for @quickActions.
+  ///
+  /// In en, this message translates to:
+  /// **'Quick Actions'**
+  String get quickActions;
+
+  /// No description provided for @manageProducts.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage Products'**
+  String get manageProducts;
+
+  /// No description provided for @viewOrders.
+  ///
+  /// In en, this message translates to:
+  /// **'View Orders'**
+  String get viewOrders;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

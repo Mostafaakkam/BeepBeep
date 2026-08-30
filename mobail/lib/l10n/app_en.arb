@@ -345,5 +345,70 @@
     }
   },
   "allReviews": "All Reviews",
-  "ratingAverage": "Rating Average"
+  "ratingAverage": "Rating Average",
+  "storeOwnerDashboard": "Store Owner Dashboard",
+  "dashboard": "Dashboard",
+  "noOwnedStores": "No Stores Yet",
+  "noOwnedStoresMessage": "You don't own any stores yet",
+  "storeStatusActive": "Active",
+  "storeStatusInactive": "Inactive",
+  "selectAStoreFirst": "Please select a store first",
+  "noOwnedProducts": "No Products Yet",
+  "noOwnedProductsMessage": "Add your first product to get started",
+  "deactivateProduct": "Deactivate Product",
+  "deactivateProductConfirm": "Are you sure you want to deactivate \"{name}\"?",
+  "@deactivateProductConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "productDeactivatedSuccess": "Product deactivated",
+  "productDeactivateFailed": "Failed to deactivate product. Please try again.",
+  "inactiveLabel": "Inactive",
+  "addProduct": "Add Product",
+  "editProduct": "Edit Product",
+  "storeLabel": "Store: {name}",
+  "@storeLabel": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "productNameRequired": "Product name is required",
+  "pleaseSelectCategory": "Please select a category",
+  "atLeastOneVariantRequired": "At least one variant is required",
+  "invalidVariantPrice": "Please enter a valid price",
+  "invalidVariantStock": "Please enter a valid stock quantity",
+  "existingVariantsCannotBeRemoved": "Existing variants can't be removed here",
+  "addVariant": "Add Variant",
+  "imageUrlsHint": "Enter one image URL per line",
+  "saveProduct": "Save Product",
+  "category": "Category",
+  "selectCategory": "Select a category",
+  "productCreatedSuccess": "Product created",
+  "productUpdatedSuccess": "Product updated",
+  "productCreateFailed": "Failed to create product. Please try again.",
+  "productUpdateFailed": "Failed to update product. Please try again.",
+  "noOwnedOrders": "No Orders Yet",
+  "noOwnedOrdersMessage": "Orders for this store will appear here",
+  "markOrderAs": "Mark as {status}",
+  "@markOrderAs": {
+    "placeholders": {
+      "status": {
+        "type": "String"
+      }
+    }
+  },
+  "orderStatusUpdatedSuccess": "Order status updated",
+  "orderStatusUpdateFailed": "Failed to update order status. Please try again.",
+  "storeOwnerWelcome": "Welcome back!",
+  "currentlyManaging": "Currently managing",
+  "switchStore": "Switch",
+  "totalProducts": "Total Products",
+  "quickActions": "Quick Actions",
+  "manageProducts": "Manage Products",
+  "viewOrders": "View Orders"
 }

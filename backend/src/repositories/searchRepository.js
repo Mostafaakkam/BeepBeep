@@ -7,13 +7,17 @@ const search = async (query) => {
   
   const searchTerm = `%${query.trim()}%`;
   
-  // Search products
+  // Search products. Store Owner Dashboard: added "AND p.is_active = 1" --
+  // same public-visibility rule as productRepository.findAll/findById and
+  // categoryRepository.getProductsByCategory; a deactivated product must not
+  // surface through search either. Additive filter, default value (1) means
+  // no behavior change for any pre-existing row.
   const [products] = await pool.execute(
     `SELECT p.id, p.name, p.description, p.store_id, p.created_at,
             s.name as store_name, s.logo as store_logo, s.address as store_address
      FROM products p
      JOIN stores s ON p.store_id = s.id
-     WHERE s.status = 'active' 
+     WHERE s.status = 'active' AND p.is_active = 1
        AND (p.name LIKE ? OR p.description LIKE ?)
      ORDER BY p.created_at DESC
      LIMIT 20`,

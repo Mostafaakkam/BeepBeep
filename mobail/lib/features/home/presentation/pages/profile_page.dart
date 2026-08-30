@@ -8,6 +8,7 @@ import '../../../auth/presentation/pages/login_page.dart';
 import '../../../orders/presentation/pages/orders_page.dart';
 import '../../../favorites/presentation/pages/favorites_page.dart';
 import '../../../addresses/presentation/pages/addresses_page.dart';
+import '../../../store_owner/presentation/pages/store_owner_home_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -72,7 +73,17 @@ class _ProfilePageState extends State<ProfilePage> {
           children: [
             _buildHeader(),
             Expanded(
-              child: _buildContent(),
+              // Store Owner Dashboard: _buildContent() reads
+              // _authViewModel.userInfo!['role'] to decide whether to show
+              // the dashboard entry button. loadUserInfo() (called in
+              // initState) resolves asynchronously, so without this listener
+              // the button would be evaluated against a stale/null userInfo
+              // from the very first frame and never appear once the role
+              // loads in.
+              child: ListenableBuilder(
+                listenable: _authViewModel,
+                builder: (context, child) => _buildContent(),
+              ),
             ),
           ],
         ),
@@ -157,6 +168,10 @@ class _ProfilePageState extends State<ProfilePage> {
                 _buildMyFavoritesButton(),
                 const SizedBox(height: AppSpacing.md),
                 _buildMyAddressesButton(),
+                if (_authViewModel.userInfo?['role'] == 'store_owner') ...[
+                  const SizedBox(height: AppSpacing.md),
+                  _buildStoreOwnerDashboardButton(),
+                ],
                 const SizedBox(height: AppSpacing.md),
                 _buildLogoutButton(),
               ],
@@ -317,6 +332,30 @@ class _ProfilePageState extends State<ProfilePage> {
         Navigator.of(context).push(
           MaterialPageRoute(
             builder: (context) => const AddressesPage(),
+          ),
+        );
+      },
+    );
+  }
+
+  /// Entry point into the Store Owner Dashboard, shown only for
+  /// authenticated store owners. The role checked here comes from
+  /// AuthViewModel.userInfo, which AuthViewModel.checkAuthStatus() refreshes
+  /// from the backend (GET /api/auth/me) rather than trusting a
+  /// client-cached value indefinitely -- this button is a convenience
+  /// entry point only, not an authorization boundary: every dashboard
+  /// endpoint re-verifies the role and store ownership server-side
+  /// regardless of whether this button is shown.
+  Widget _buildStoreOwnerDashboardButton() {
+    final l10n = AppLocalizations.of(context);
+    return AppButton(
+      text: l10n.storeOwnerDashboard,
+      type: AppButtonType.secondary,
+      isFullWidth: true,
+      onPressed: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => const StoreOwnerHomePage(),
           ),
         );
       },

@@ -62,7 +62,62 @@ const getProductById = async (req, res) => {
   }
 };
 
+// Store Owner Dashboard: update a product. Mounted with
+// requireProductOwnership('id') (see routes/productRoutes.js) -- by the
+// time this runs, ownership of :id has already been verified server-side.
+const updateProduct = async (req, res) => {
+  try {
+    const { id } = req.params;
+    await productService.updateProduct(parseInt(id), req.body || {});
+
+    res.status(200).json({
+      success: true,
+      message: 'Product updated successfully'
+    });
+  } catch (error) {
+    if (
+      ['INVALID_NAME', 'INVALID_DESCRIPTION', 'INVALID_CATEGORY', 'CATEGORY_NOT_FOUND', 'INVALID_VARIANTS', 'INVALID_IMAGES'].includes(
+        error.code
+      )
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+        code: error.code
+      });
+    }
+
+    console.error('Update product error:', error.message);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update product'
+    });
+  }
+};
+
+// Store Owner Dashboard: soft-delete (deactivate) a product. Mounted with
+// requireProductOwnership('id') -- ownership already verified server-side.
+const deactivateProduct = async (req, res) => {
+  try {
+    const { id } = req.params;
+    await productService.deactivateProduct(parseInt(id));
+
+    res.status(200).json({
+      success: true,
+      message: 'Product deactivated successfully'
+    });
+  } catch (error) {
+    console.error('Deactivate product error:', error.message);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to deactivate product'
+    });
+  }
+};
+
 module.exports = {
   getAllProducts,
-  getProductById
+  getProductById,
+  updateProduct,
+  deactivateProduct
 };

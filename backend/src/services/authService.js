@@ -125,7 +125,28 @@ const login = async (loginData) => {
   };
 };
 
+// Store Owner Dashboard: GET /api/auth/me used to just echo back
+// req.user.role, which is the JWT's role claim -- valid for up to 7 days,
+// so a role change (e.g. promotion to store_owner) would not be reflected
+// here until the token was reissued. This is the exact staleness problem
+// requireRole() (authorizationMiddleware.js) already solves for gated
+// routes; getCurrentUser applies the same fix to this one, since the
+// Flutter app now uses it on session restore to decide whether to show the
+// Store Owner Dashboard entry point -- "determine the user's current role
+// from the backend, do not trust a client-supplied role" only holds if this
+// endpoint itself is DB-fresh.
+const getCurrentUser = async (userId) => {
+  const user = await userRepository.findById(userId);
+  if (!user) {
+    const error = new Error('User not found');
+    error.code = 'USER_NOT_FOUND';
+    throw error;
+  }
+  return { userId: user.id, role: user.role };
+};
+
 module.exports = {
   register,
-  login
+  login,
+  getCurrentUser
 };

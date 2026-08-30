@@ -2,7 +2,7 @@ import 'app_localizations.dart';
 
 /// The translations for English (`en`).
 class AppLocalizationsEn extends AppLocalizations {
-  AppLocalizationsEn([super.locale = 'en']);
+  AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
   String get appName => 'Beep Beep';
@@ -789,4 +789,204 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get seeAllStores => 'See all';
+
+  @override
+  String get writeAReview => 'Write a Review';
+
+  @override
+  String get editYourReview => 'Edit Your Review';
+
+  @override
+  String get yourReview => 'Your Review';
+
+  @override
+  String get yourRating => 'Your Rating';
+
+  @override
+  String get yourReviewOptional => 'Your Review (optional)';
+
+  @override
+  String get reviewCommentHint => 'Share your thoughts about this product...';
+
+  @override
+  String get submitReview => 'Submit Review';
+
+  @override
+  String get pleaseSelectRating => 'Please select a rating';
+
+  @override
+  String get reviewSubmitFailed => 'Failed to submit review. Please try again.';
+
+  @override
+  String get reviewSubmittedSuccess => 'Review submitted';
+
+  @override
+  String get reviewUpdatedSuccess => 'Review updated';
+
+  @override
+  String get reviewDeletedSuccess => 'Review deleted';
+
+  @override
+  String get reviewDeleteFailed => 'Failed to delete review. Please try again.';
+
+  @override
+  String get deleteReviewTitle => 'Delete Review';
+
+  @override
+  String get deleteReviewConfirmMessage => 'Are you sure you want to delete your review?';
+
+  @override
+  String get loginToReviewMessage => 'Login to write a review for this product';
+
+  @override
+  String get purchaseRequiredMessage => 'Only customers who purchased and received this product can leave a review';
+
+  @override
+  String reviewCountLabel(int count) {
+    return '($count reviews)';
+  }
+
+  @override
+  String get allReviews => 'All Reviews';
+
+  @override
+  String get ratingAverage => 'Rating Average';
+
+  @override
+  String get storeOwnerDashboard => 'Store Owner Dashboard';
+
+  @override
+  String get dashboard => 'Dashboard';
+
+  @override
+  String get noOwnedStores => 'No Stores Yet';
+
+  @override
+  String get noOwnedStoresMessage => 'You don\'t own any stores yet';
+
+  @override
+  String get storeStatusActive => 'Active';
+
+  @override
+  String get storeStatusInactive => 'Inactive';
+
+  @override
+  String get selectAStoreFirst => 'Please select a store first';
+
+  @override
+  String get noOwnedProducts => 'No Products Yet';
+
+  @override
+  String get noOwnedProductsMessage => 'Add your first product to get started';
+
+  @override
+  String get deactivateProduct => 'Deactivate Product';
+
+  @override
+  String deactivateProductConfirm(String name) {
+    return 'Are you sure you want to deactivate \"$name\"?';
+  }
+
+  @override
+  String get productDeactivatedSuccess => 'Product deactivated';
+
+  @override
+  String get productDeactivateFailed => 'Failed to deactivate product. Please try again.';
+
+  @override
+  String get inactiveLabel => 'Inactive';
+
+  @override
+  String get addProduct => 'Add Product';
+
+  @override
+  String get editProduct => 'Edit Product';
+
+  @override
+  String storeLabel(String name) {
+    return 'Store: $name';
+  }
+
+  @override
+  String get productNameRequired => 'Product name is required';
+
+  @override
+  String get pleaseSelectCategory => 'Please select a category';
+
+  @override
+  String get atLeastOneVariantRequired => 'At least one variant is required';
+
+  @override
+  String get invalidVariantPrice => 'Please enter a valid price';
+
+  @override
+  String get invalidVariantStock => 'Please enter a valid stock quantity';
+
+  @override
+  String get existingVariantsCannotBeRemoved => 'Existing variants can\'t be removed here';
+
+  @override
+  String get addVariant => 'Add Variant';
+
+  @override
+  String get imageUrlsHint => 'Enter one image URL per line';
+
+  @override
+  String get saveProduct => 'Save Product';
+
+  @override
+  String get category => 'Category';
+
+  @override
+  String get selectCategory => 'Select a category';
+
+  @override
+  String get productCreatedSuccess => 'Product created';
+
+  @override
+  String get productUpdatedSuccess => 'Product updated';
+
+  @override
+  String get productCreateFailed => 'Failed to create product. Please try again.';
+
+  @override
+  String get productUpdateFailed => 'Failed to update product. Please try again.';
+
+  @override
+  String get noOwnedOrders => 'No Orders Yet';
+
+  @override
+  String get noOwnedOrdersMessage => 'Orders for this store will appear here';
+
+  @override
+  String markOrderAs(String status) {
+    return 'Mark as $status';
+  }
+
+  @override
+  String get orderStatusUpdatedSuccess => 'Order status updated';
+
+  @override
+  String get orderStatusUpdateFailed => 'Failed to update order status. Please try again.';
+
+  @override
+  String get storeOwnerWelcome => 'Welcome back!';
+
+  @override
+  String get currentlyManaging => 'Currently managing';
+
+  @override
+  String get switchStore => 'Switch';
+
+  @override
+  String get totalProducts => 'Total Products';
+
+  @override
+  String get quickActions => 'Quick Actions';
+
+  @override
+  String get manageProducts => 'Manage Products';
+
+  @override
+  String get viewOrders => 'View Orders';
 }

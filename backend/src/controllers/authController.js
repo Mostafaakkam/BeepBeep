@@ -90,17 +90,28 @@ const login = async (req, res) => {
   }
 };
 
+// Store Owner Dashboard: now returns the DB-verified current role (see
+// authService.getCurrentUser) instead of the JWT's role claim, so a role
+// change takes effect immediately here too -- same principle as
+// requireRole(), applied to this read-only "who am I" endpoint. Response
+// shape (`{userId, role}`) is unchanged.
 const getMe = async (req, res) => {
   try {
+    const currentUser = await authService.getCurrentUser(req.user.userId);
+
     res.status(200).json({
       success: true,
       message: 'Authenticated user retrieved',
-      data: {
-        userId: req.user.userId,
-        role: req.user.role
-      }
+      data: currentUser
     });
   } catch (error) {
+    if (error.code === 'USER_NOT_FOUND') {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication failed'
+      });
+    }
+
     console.error('Get me error:', error.message);
     res.status(500).json({
       success: false,

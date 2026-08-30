@@ -14,3 +14,5 @@ export 'address_model.dart';
 export 'category_model.dart';
 export 'product_filter.dart';
 export 'review_model.dart';
+export 'current_user_model.dart';
+export 'dashboard_stats_model.dart';

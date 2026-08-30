@@ -31,8 +31,26 @@ const findOwnerId = async (storeId) => {
   return rows[0].owner_id; // may be null (store not yet assigned an owner)
 };
 
+// Store Owner Dashboard: the owner's own stores, for the "my stores" list /
+// switcher. Deliberately NOT filtered by status = 'active' (unlike
+// findAllActive) -- an owner must be able to see and manage a pending/
+// inactive store of their own, not just active ones. owner_id itself is
+// still never included in the SELECT, same reasoning as findOwnerId below:
+// this endpoint is reached only after requireRole('store_owner') has
+// verified req.user.userId server-side, so there is no need to echo the
+// owner id back, and doing so would be one more place a client could try to
+// read/spoof it from.
+const findByOwnerId = async (ownerId) => {
+  const [rows] = await pool.execute(
+    'SELECT id, name, description, logo, cover_image, address, phone, status, created_at, updated_at FROM stores WHERE owner_id = ? ORDER BY created_at DESC',
+    [ownerId]
+  );
+  return rows;
+};
+
 module.exports = {
   findAllActive,
   findById,
-  findOwnerId
+  findOwnerId,
+  findByOwnerId
 };

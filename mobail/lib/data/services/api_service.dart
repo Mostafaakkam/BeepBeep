@@ -89,6 +89,37 @@ class ApiService {
     }
   }
   
+  // Store Owner Dashboard: PUT /api/products/:id (full product update).
+  // Mirrors post()/patch() above exactly; no existing repository needed this
+  // verb before this feature.
+  Future<Map<String, dynamic>> put(
+    String endpoint,
+    Map<String, dynamic> body, {
+    String? token,
+  }) async {
+    try {
+      final headers = {
+        'Content-Type': 'application/json',
+      };
+
+      if (token != null) {
+        headers['Authorization'] = 'Bearer $token';
+      }
+
+      final response = await _client
+          .put(
+            Uri.parse('${ApiConfig.baseUrl}$endpoint'),
+            headers: headers,
+            body: jsonEncode(body),
+          )
+          .timeout(ApiConfig.timeout);
+
+      return _handleResponse(response);
+    } catch (e) {
+      throw _handleError(e);
+    }
+  }
+
   Future<Map<String, dynamic>> delete(
     String endpoint, {
     String? token,

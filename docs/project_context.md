@@ -75,14 +75,15 @@ Beep Beep is a mobile marketplace application designed for local commerce, start
 - Product Reviews & Ratings API with purchase-verified eligibility and ownership enforcement
 - Flutter review submission/edit UI with rating summary and review list on Product Details
 - Product average rating and review count computed on read and exposed on Product Details
+- Store Owner Dashboard: role-gated Flutter dashboard (list/switch owned stores, add/edit/deactivate products, view and progress orders through their valid status transitions) integrated into the existing app, backed by new/extended backend endpoints reusing the existing role/ownership authorization middleware
 
 ### Planned (Not Yet Implemented)
-- Order management dashboard for store owners
 - Admin dashboard
+- Store creation flow (an owner cannot create a new store through the app yet — Store Owner Dashboard v1 is list/switch/manage only)
+- Product image upload (product images are URL-based only; no file upload UI)
 - Advanced delivery pricing
 - Payment gateway integration (Stripe, PayPal, etc.)
 - User profile management beyond logout and addresses
-- Store owner accounts
 - Delivery driver integration
 - Multi-city expansion
 
@@ -225,12 +226,14 @@ The Flutter app follows MVVM architecture:
 - Relationships: One category contains many products, can have child categories
 - Status: Schema defined, not yet used
 
-**products**
-- Columns: id, name, description, store_id, category_id, created_at, updated_at
+**products** *(is_active added — Store Owner Dashboard)*
+- Columns: id, name, description, store_id, category_id, `is_active` (TINYINT(1), default 1), created_at, updated_at
 - Primary Key: id
 - Foreign Keys: store_id, category_id
 - Relationships: Belongs to one store, one category; has many images, many variants
-- Status: Schema defined, not yet used
+- `is_active`: soft-delete flag, added by `database/migrations/003_add_product_is_active.sql` (additive, `DEFAULT 1` — every existing row stays visible with zero behavior change). A store owner "deleting" a product from the dashboard sets `is_active = 0` server-side; the row and its variants/images are never hard-deleted (avoids breaking FKs from `order_items`/`cart_items`/`reviews`/`favorites`, and preserves historical order snapshots). Every public product-visibility surface filters `is_active = 1`: `productRepository.findAll`/`findById`, `categoryRepository.getProductsByCategory`, `searchRepository.search`. The store owner's own product list (`GET /api/stores/:storeId/products`) deliberately does **not** filter on it, so an owner can see and manage their deactivated products.
+- Index: `idx_products_is_active`
+- Status: In use
 
 **product_images**
 - Purpose: Store product image paths
@@ -261,7 +264,8 @@ The Flutter app follows MVVM architecture:
 - Foreign Keys: user_id, `store_id` → `stores(id)` (nullable — `NULL` on legacy orders created before this migration; new orders always get it populated, see below)
 - `store_id` is derived and validated **server-side only**, from the cart's actual items at the moment of checkout — it is never accepted from the client. A cart that somehow contains items from more than one store (bypassing the cart-level `STORE_MISMATCH` check) is rejected at checkout with `MULTI_STORE_CART` instead of being allowed through.
 - Index: `idx_orders_store_id`
-- Status values: pending, confirmed, shipping, delivered, cancelled
+- Status values: `pending`, `confirmed`, `preparing`, `shipped`, `delivered`, `cancelled` (no DB `ENUM`/`CHECK` constraint on this column — the value set is enforced entirely at the application layer, see `orderService.VALID_TRANSITIONS` below). *(Correction — this list previously read "pending, confirmed, shipping, delivered, cancelled"; `preparing`/`shipped` is the actual set already in use by `Order.formattedStatus` in the Flutter model and is now also the single source of truth enforced server-side by the Store Owner Dashboard's status-update endpoint.)*
+- Status transitions: `pending → confirmed → preparing → shipped → delivered`, one step at a time, no skipping, no going backward — enforced by `orderService.VALID_TRANSITIONS` (Store Owner Dashboard, `PATCH /api/stores/:storeId/orders/:orderId/status`, see §6). `pending → cancelled` remains exclusively on the pre-existing customer-only `PATCH /api/orders/:id/cancel` endpoint; a store owner can never set `cancelled`.
 - Relationships: Belongs to one user, contains many order items; belongs to **exactly one** store (Single-Store Order Rule — "one order must contain products from one store only")
 - Status: In use
 
@@ -394,6 +398,7 @@ Complete database schema documentation is available in: `docs/database.md`
   }
   ```
 - Status Codes: 200 (success), 401 (authentication failed/invalid token/expired token), 500 (server error)
+- **Update (Store Owner Dashboard):** `role` is now re-fetched fresh from the database on every call (`authService.getCurrentUser` → `userRepository.findById`) instead of being read from the JWT claim — closes the same stale-token privilege window that `requireRole` already closed for authorization checks, and is what the Flutter `AuthViewModel` uses on session restore to decide whether to show the Store Owner Dashboard entry point (never trusts a client-cached role indefinitely). Responds 401 with `USER_NOT_FOUND` if the user has been deleted since the token was issued.
 
 **GET /api/products**
 - Purpose: Retrieve products with advanced filtering and sorting
@@ -428,6 +433,7 @@ Complete database schema documentation is available in: `docs/database.md`
 - Status Codes: 200 (success), 500 (server error)
 - Implementation Notes: All filters are combinable, variant-based price/stock filtering, parameterized SQL, whitelisted sorting
 - **Note (Reviews & Ratings):** the response for `GET /api/products/:id` now also includes `average_rating` (number, 0 if no reviews) and `review_count` (integer), computed on read from the `reviews` table.
+- **Note (Store Owner Dashboard):** both `GET /api/products` and `GET /api/products/:id` now filter `is_active = 1` (deactivated products are excluded from public browsing/search/category listings — see `products.is_active` in §5). Fixed alongside this: `GET /api/products/:id` previously returned 500 instead of 404 for *any* nonexistent product id (a pre-existing bug in `productService.getProductById`'s error handling that swallowed the `PRODUCT_NOT_FOUND` error code) — this was caught because it's exactly the path a deactivated product must hit to disappear correctly from the storefront.
 
 **GET /api/reviews/product/:productId**
 - Purpose: Retrieve a product's reviews and rating summary
@@ -502,12 +508,63 @@ The pre-existing cart (`/api/cart`) and orders (`/api/orders`) endpoints are unc
 - New rejection case (defensive, independent of the cart-level `STORE_MISMATCH` check above): if the cart somehow contains items from more than one store at checkout time, the order is not created.
 - Response Structure (400): `{ "success": false, "message": "Cart contains products from multiple stores", "code": "MULTI_STORE_CART" }`
 
-**GET /api/stores/:storeId/orders** *(new)*
+**GET /api/stores/:storeId/orders**
 - Purpose: List orders placed against one store, for the store owner
 - Authentication: Required (JWT Bearer token); Authorization: `requireRole('store_owner', 'admin')` then `requireStoreOwnership('storeId')` (admin bypasses ownership)
 - Query Parameters: `status` (optional) — filter by order status
 - Status Codes: 200 (success), 401 (unauthenticated), 403 (not this store's owner and not admin, or the store has no owner), 500 (server error)
-- Note: this is a minimal, deliberately-scoped endpoint added to give the ownership middleware a real, testable mounting point — it is **not** the Store Owner Dashboard, which remains unbuilt (no product-management or dashboard UI exists yet)
+- Note: predates the Store Owner Dashboard (added as the ownership middleware's first real mounting point); now reused as-is by the dashboard's Orders tab.
+
+### Store Owner Dashboard API *(new)*
+
+All endpoints below reuse the pre-existing `authenticate` / `requireRole` / `requireStoreOwnership` / `requireProductOwnership` middleware (§7) exactly as-is — no authorization middleware was modified for this feature. Every response follows the existing `{ success, message, data }` / `{ success, message, code }` shape used elsewhere.
+
+**GET /api/stores/mine** *(new)*
+- Purpose: The authenticated store owner's own stores (for the dashboard's store list/switcher)
+- Authentication: Required; Authorization: `requireRole('store_owner')`
+- Response: `data` is an array of stores the caller owns, including `status` (omitted on the public store list/detail endpoints)
+- Status Codes: 200 (success), 401 (unauthenticated), 403 (not a store owner), 500 (server error)
+
+**GET /api/stores/:storeId/dashboard** *(new)*
+- Purpose: Summary stats for the dashboard home — order counts by status (`pending`/`confirmed`/`preparing`/`shipped`/`delivered`) plus total product count for the store
+- Authentication: Required; Authorization: `requireRole('store_owner', 'admin')` then `requireStoreOwnership('storeId')`
+- Status Codes: 200 (success), 401, 403, 500
+
+**GET /api/stores/:storeId/products** *(new)*
+- Purpose: The store's full product list for the owner, including deactivated (`is_active = 0`) products — unlike the public `GET /api/products`, which excludes them
+- Authentication: Required; Authorization: `requireRole('store_owner', 'admin')` then `requireStoreOwnership('storeId')`
+- Status Codes: 200 (success), 401, 403, 500
+
+**POST /api/stores/:storeId/products** *(new)*
+- Purpose: Create a product in the given store
+- Authentication: Required; Authorization: `requireRole('store_owner', 'admin')` then `requireStoreOwnership('storeId')`
+- Request Body: `{ "name": "...", "description": "...", "categoryId": 3, "variants": [{ "color": "Red", "size": "M", "price": 19.99, "stock": 10 }], "images": ["https://.../a.jpg"] }` — fields map 1:1 to the existing `products`/`product_variants`/`product_images` columns; no new columns invented
+- Validation (service layer, mirrors `reviewService`'s style): name/description length limits, `categoryId` must reference an existing category, at least one variant with `price > 0` and an integer `stock >= 0`
+- Status Codes: 201 (success, `data: { id }`), 400 (validation failed — `INVALID_NAME`/`INVALID_DESCRIPTION`/`INVALID_CATEGORY`/`CATEGORY_NOT_FOUND`/`INVALID_VARIANTS`/`INVALID_IMAGES`), 401, 403, 500
+
+**PUT /api/products/:id** *(new)*
+- Purpose: Update a product's name/description/category and variants
+- Authentication: Required; Authorization: `requireRole('store_owner', 'admin')` then `requireProductOwnership('id')`
+- Request Body: same shape as create, minus `images`. Variants with an `id` are updated in place; variants without one are appended as new. **A variant row is never deleted through this endpoint** — an owner retires a variant by setting its stock to 0, not by removing the row — this avoids breaking foreign keys from `order_items`/`cart_items` on already-placed orders.
+- Note: does not touch `product_images` — there is no image-editing endpoint in v1 (images are set once at creation only)
+- Status Codes: 200 (success), 400 (same validation codes as create), 401, 403, 404 (product not found), 500
+
+**PATCH /api/products/:id/deactivate** *(new)*
+- Purpose: Soft-delete a product (`is_active = 0`) — never a hard `DELETE`
+- Authentication: Required; Authorization: `requireRole('store_owner', 'admin')` then `requireProductOwnership('id')`
+- Status Codes: 200 (success), 401, 403, 404, 500
+
+**GET /api/stores/:storeId/orders/:orderId** *(new)*
+- Purpose: Order detail scoped to one store (store-owner sibling of the customer-scoped `GET /api/orders/:id`)
+- Authentication: Required; Authorization: `requireRole('store_owner', 'admin')` then `requireStoreOwnership('storeId')`
+- Status Codes: 200 (success), 401, 403, 404 (order not found or not in this store), 500
+
+**PATCH /api/stores/:storeId/orders/:orderId/status** *(new)*
+- Purpose: Advance an order to the single next valid status (see the `orders` status-transition table in §5)
+- Authentication: Required; Authorization: `requireRole('store_owner', 'admin')` then `requireStoreOwnership('storeId')`
+- Request Body: `{ "status": "confirmed" }` — target must be one of `confirmed`/`preparing`/`shipped`/`delivered` (never `cancelled` — that stays customer-only) and must be the single valid next step from the order's current status
+- Implementation: the underlying `UPDATE` includes `WHERE status = ?` (the expected current status) as an atomic guard against a race changing the order's status between the read and the write
+- Status Codes: 200 (success, `data: { status }`), 400 (`INVALID_STATUS` / `INVALID_STATUS_TRANSITION`), 401, 403, 404 (order not found or not in this store), 500
 
 ## 7. Authentication & Security
 
@@ -569,8 +626,9 @@ The pre-existing cart (`/api/cart`) and orders (`/api/orders`) endpoints are unc
   - `requireRole(...allowedRoles)` — re-fetches the user's **current** role from the database (via `userRepository.findById`) rather than trusting the JWT's `role` claim, and refreshes `req.user.role`. This closes a stale-token privilege window: a role change (promotion or demotion) in the database takes effect on the very next request made with an already-issued token, without waiting for the token to expire or be reissued. Responds 403 if the (fresh) role is not in `allowedRoles`.
   - `requireStoreOwnership(paramName = 'storeId')` / `requireProductOwnership(paramName = 'id')` — resolve the target store/product from the route param, look up its owner server-side (`storeRepository.findOwnerId` / `productRepository.findStoreIdById`, both distinct from the public-facing `findById` methods so `owner_id` is never exposed on public endpoints), and allow the request only if the authenticated user is that owner, **or** has the `admin` role (ownership bypass, for future admin functionality). Otherwise 403. On success, attaches the resolved resource (`req.store` / `req.product`) for the controller to use.
   - Client-supplied owner/store/user IDs in the request body are never trusted for authorization — ownership is always resolved from the database via the route param, independent of anything in the request body.
-  - `requireProductOwnership` is implemented and unit-testable but not yet mounted on any route — there are no product-management endpoints in scope yet (that's part of the future Store Owner Dashboard).
-  - Applied today to `GET /api/stores/:storeId/orders` (`requireRole('store_owner', 'admin')` then `requireStoreOwnership('storeId')`) — see §6.
+  - `requireProductOwnership` *(Store Owner Dashboard)*: now mounted on `PUT /api/products/:id` and `PATCH /api/products/:id/deactivate` — the first product-management endpoints in the app. No changes were made to the middleware itself; it was implemented and tested in the prior feature and reused as-is.
+  - `requireStoreOwnership` *(Store Owner Dashboard)*: also now mounted on every new `/api/stores/:storeId/...` dashboard endpoint (§6) — same unmodified middleware, same admin-bypass behavior.
+- Applied to `GET /api/stores/:storeId/orders` and the full Store Owner Dashboard endpoint set (`GET /api/stores/mine`, `GET/POST /api/stores/:storeId/products`, `PUT /api/products/:id`, `PATCH /api/products/:id/deactivate`, `GET /api/stores/:storeId/orders/:orderId`, `PATCH /api/stores/:storeId/orders/:orderId/status`) — see §6.
 - Existing customer authentication behavior (register/login/JWT/`authenticate` middleware) is unchanged by this feature.
 
 **Known Limitations**
@@ -665,8 +723,8 @@ The pre-existing cart (`/api/cart`) and orders (`/api/orders`) endpoints are unc
 - **Status**: ✅ Completed (implemented and statically verified; on-device `flutter analyze`/build not run this session — see §12)
 - **Related Files**:
   - `mobail/l10n.yaml` — gen_l10n configuration
-  - `mobail/lib/l10n/app_en.arb` — English strings (template/default locale, 252 keys)
-  - `mobail/lib/l10n/app_ar.arb` — Arabic strings (252 keys, full parity with English)
+  - `mobail/lib/l10n/app_en.arb` — English strings (template/default locale, 320 keys as of Store Owner Dashboard)
+  - `mobail/lib/l10n/app_ar.arb` — Arabic strings (320 keys, full parity with English)
   - `mobail/lib/l10n/generated/app_localizations.dart` — generated by `flutter gen-l10n` (not committed; produced by `flutter pub get`)
   - `mobail/lib/core/locale/locale_provider.dart` — `LocaleProvider` (ChangeNotifier) + `SharedPreferences` persistence
   - `mobail/lib/main.dart` — wires `locale`, `supportedLocales`, `localizationsDelegates` into `MaterialApp`
@@ -676,6 +734,7 @@ The pre-existing cart (`/api/cart`) and orders (`/api/orders`) endpoints are unc
   - Every page under `mobail/lib/features/*/presentation/pages/` — hardcoded strings replaced with `AppLocalizations.of(context)!.<key>` calls
 - **Implementation Notes**: Uses Flutter's standard `flutter_localizations` + ARB/gen_l10n toolchain (no custom/hand-rolled localization system, no unnecessary dependencies beyond `flutter_localizations` + `intl`, both from the Flutter SDK). English is the default language; Arabic is fully supported with automatic RTL layout (Flutter derives `Directionality` from the active `Locale`). Manual RTL-correctness fixes applied where needed: `` on custom back-arrow/chevron icons, and `EdgeInsetsDirectional`/`PositionedDirectional` in place of directionally-hardcoded `EdgeInsets.only(right:)`/`Positioned(right:)` for horizontal-list spacing and badges. Language choice persists across restarts via `SharedPreferences`. MVVM architecture and Design System reused throughout; no UI redesign, no backend/API/database changes.
 - **Correction (2026-08-22, during Reviews & Ratings work):** `product_details_page.dart` was found to still have hardcoded English strings and to never call `AuthViewModel.checkAuthStatus()` (so `isAuthenticated` was always `false`, silently breaking both the favorite-button state and, now, review eligibility). Both were fixed while adding the review UI to that same page — see the Reviews entry below.
+- **Correction (Store Owner Dashboard):** the three generated `mobail/lib/l10n/generated/app_localizations*.dart` files were found to be missing all 20 of the Reviews feature's keys (`writeAReview`, `submitReview`, `reviewCountLabel`, etc.) — present in both ARB files but never hand-patched into the generated Dart files after that feature's `flutter gen-l10n` couldn't run in this sandbox. This meant the app as delivered would not compile. Fixed alongside this feature's own 44 new keys (all 64 hand-patched into all three generated files, matching the existing pattern for parameterized vs. plain keys); not something this feature introduced, but discovered and fixed while hand-patching its own keys into the same files.
 
 ### Reviews
 - **Status**: ✅ Completed (backend verified end-to-end in a local sandbox MySQL instance; Flutter side statically verified only — see §12)
@@ -689,6 +748,28 @@ The pre-existing cart (`/api/cart`) and orders (`/api/orders`) endpoints are unc
   - `mobail/lib/config/api_config.dart` — extended with the `/reviews` endpoint base path
   - `mobail/lib/l10n/app_en.arb`, `mobail/lib/l10n/app_ar.arb` — review-related strings added (key parity maintained)
 - **Implementation Notes**: Authenticated users who purchased a product via a `delivered` order can leave a 1-5 star rating with an optional comment; users can edit/delete their own review; one review per user per product (service-layer check + database `UNIQUE` constraint). Rating summary (average + count) and the review list are shown on Product Details, along with a context-appropriate action: "Write a Review" button, the user's own review with edit/delete icons, a purchase-required message, or a login prompt — depending on auth/purchase/review state. Star rating picker and star displays are plain `Icon(Icons.star / Icons.star_border)` rows (no new dependency). MVVM architecture and Design System reused throughout (`AppCard`, `AppButton`, `AppTextField`, `AppColors`, `AppSpacing`, `AppBorderRadius`); fully localized and RTL-safe (uses `EdgeInsetsDirectional` for the image-thumbnail row already on that page).
+
+### Store Owner Dashboard
+- **Status**: ✅ Completed (backend verified end-to-end in a local sandbox MariaDB instance — 47/47 pre-existing regression checks + 54/54 new dashboard checks; Flutter side statically verified only — see §12)
+- **Related Files**:
+  - `mobail/lib/data/models/current_user_model.dart` — `CurrentUser` model for the DB-fresh `GET /api/auth/me` response
+  - `mobail/lib/data/models/dashboard_stats_model.dart` — `DashboardStats` model (order counts by status + product count)
+  - `mobail/lib/data/models/store_model.dart` — extended with nullable `status` (owner-scoped responses only)
+  - `mobail/lib/data/models/product_model.dart` — extended with `isActive` (defaults to `true`; only ever `false` on the owner's own product list)
+  - `mobail/lib/data/repositories/store_owner_repository.dart` — wraps every dashboard endpoint (§6)
+  - `mobail/lib/data/repositories/auth_repository.dart` — extended with `getMe()`
+  - `mobail/lib/features/auth/presentation/viewmodels/auth_viewmodel.dart` — `checkAuthStatus()` now refreshes the role from the backend after confirming a cached token, falling back to the cached role if the call fails (offline-tolerant)
+  - `mobail/lib/features/store_owner/presentation/viewmodels/store_owner_viewmodel.dart` — owned stores, selected store (shared across all dashboard tabs), dashboard stats
+  - `mobail/lib/features/store_owner/presentation/viewmodels/owner_product_viewmodel.dart` — product list/create/update/deactivate for the selected store
+  - `mobail/lib/features/store_owner/presentation/viewmodels/owner_order_viewmodel.dart` — order list/detail/status-update for the selected store; `nextValidStatus()` mirrors the server's transition map for UX only (not an enforcement point)
+  - `mobail/lib/features/store_owner/presentation/pages/store_owner_home_page.dart` — the dashboard shell (4-tab `BottomNavigationBar`, mirrors `HomePage`'s existing pattern) + the Dashboard tab (welcome, store selector, summary stat cards, quick actions)
+  - `mobail/lib/features/store_owner/presentation/pages/store_owner_products_page.dart`, `product_form_page.dart` — product list + create/edit form (variants sub-form; images field shown only when creating)
+  - `mobail/lib/features/store_owner/presentation/pages/store_owner_orders_page.dart`, `store_owner_order_details_page.dart` — order list + detail with a single "Mark as X" status-advance button
+  - `mobail/lib/features/store_owner/presentation/pages/store_owner_stores_page.dart` — list/switch owned stores
+  - `mobail/lib/features/home/presentation/pages/profile_page.dart` — "Store Owner Dashboard" entry button, shown only when the (DB-fresh) role is `store_owner`
+  - `mobail/lib/l10n/app_en.arb`, `mobail/lib/l10n/app_ar.arb` — 44 new keys added (full EN/AR parity)
+- **Implementation Notes**: A single `StoreOwnerViewModel` instance is created once (in `StoreOwnerHomePage`) and passed to every tab, so switching the selected store on the Stores tab immediately updates what the Dashboard/Products/Orders tabs show. Does **not** replace the customer `HomePage` — reached only via the new Profile button, and a store owner can back out to the normal marketplace at any time. No store-creation UI (matches the backend — v1 is list/switch/manage only). The product edit form deliberately omits an image editor, since the update endpoint never touches `product_images` (showing a control that silently did nothing would be misleading); existing variants have no remove control in the UI (mirrors the backend never deleting a variant row). Every screen re-verifies nothing client-side that the backend doesn't already enforce — ownership and status-transition validity are always re-checked server-side regardless of what the UI offers. MVVM architecture and Design System reused throughout; fully localized (English/Arabic).
+- **Verification caveat**: no Flutter/Dart SDK is available in this cloud sandbox (confirmed again this session — `pub.dev`/`storage.googleapis.com` blocked), so this feature's Flutter code was verified by static review only: every model/widget/repository/viewmodel API referenced by the new UI files was cross-checked against its actual definition (not assumed), brace/paren/bracket balance was checked on every new/edited file, and all 44 new + previously-missing 20 Reviews-feature localization keys were confirmed present in both ARB files and all three generated `app_localizations*.dart` files (hand-patched — `flutter gen-l10n` cannot run here). `flutter analyze`/`flutter pub get`/an on-device build were **not** run — run these locally before considering the Flutter side fully verified, same caveat as every prior Flutter feature in this project.
 
 ## 9. Design System
 
@@ -879,6 +960,8 @@ mobail/
 │   │   │   ├── category_model.dart        # Category model
 │   │   │   ├── product_filter.dart        # Product filter model
 │   │   │   ├── review_model.dart          # Review + RatingSummary models
+│   │   │   ├── current_user_model.dart    # CurrentUser model (Store Owner Dashboard)
+│   │   │   ├── dashboard_stats_model.dart # DashboardStats model (Store Owner Dashboard)
 │   │   │   └── models.dart               # Barrel export
 │   │   ├── repositories/
 │   │   │   ├── auth_repository.dart      # Authentication repository
@@ -889,7 +972,8 @@ mobail/
 │   │   │   ├── favorite_repository.dart   # Favorite repository
 │   │   │   ├── address_repository.dart    # Address repository
 │   │   │   ├── category_repository.dart   # Category repository
-│   │   │   └── review_repository.dart     # Review repository
+│   │   │   ├── review_repository.dart     # Review repository
+│   │   │   └── store_owner_repository.dart # Store Owner Dashboard repository
 │   │   └── services/
 │   │       ├── api_service.dart           # HTTP API service
 │   │       └── token_storage.dart         # JWT token storage
@@ -972,6 +1056,19 @@ mobail/
 │           │   └── review_form_sheet.dart      # Submit/edit review bottom sheet
 │           └── viewmodels/
 │               └── review_viewmodel.dart       # Review ViewModel
+│   └── store_owner/
+│       └── presentation/
+│           ├── pages/
+│           │   ├── store_owner_home_page.dart         # Dashboard shell (4-tab BottomNavigationBar) + Dashboard tab
+│           │   ├── store_owner_products_page.dart      # Product list for the selected store
+│           │   ├── product_form_page.dart              # Create/edit product form
+│           │   ├── store_owner_orders_page.dart         # Order list for the selected store
+│           │   ├── store_owner_order_details_page.dart # Order detail + status-advance button
+│           │   └── store_owner_stores_page.dart         # List/switch owned stores
+│           └── viewmodels/
+│               ├── store_owner_viewmodel.dart    # Owned stores, selected store, dashboard stats
+│               ├── owner_product_viewmodel.dart  # Product list/create/update/deactivate
+│               └── owner_order_viewmodel.dart    # Order list/detail/status-update
 │   ├── config/
 │   │   └── api_config.dart               # API configuration
 │   ├── design_system_demo.dart           # Design system demo (for reference)
@@ -993,12 +1090,15 @@ docs/
 └── project_context.md             # This file - project context
 ```
 
-### Database Migrations (new)
+### Database Migrations
 ```
 database/
 └── migrations/
-    └── 001_create_reviews_table.sql  # Adds the `reviews` table (run manually; no automated runner)
+    ├── 001_create_reviews_table.sql              # Adds the `reviews` table
+    ├── 002_add_roles_ownership_single_store.sql  # Adds users.role, stores.owner_id, carts.store_id, orders.store_id
+    └── 003_add_product_is_active.sql             # Adds products.is_active (Store Owner Dashboard soft-delete)
 ```
+Run manually, in order, against your local `beep_beep` database — no automated migration runner exists yet (see §15).
 
 ## 11. Git History / Milestones
 
@@ -1070,6 +1170,7 @@ database/
 - **Empty Filtered States**: Clear empty state with Clear Filters action for filtered results
 - **Localization Implemented**: App-wide English/Arabic localization via `flutter_localizations` + ARB/gen_l10n, RTL/LTR support, language selector with persistence — infrastructure step completed ahead of Product Reviews & Ratings
 - **Product Reviews & Ratings Implemented**: New `reviews` table + migration, review API (create/edit/delete/list/eligibility) with purchase verification and ownership enforcement, product average rating and review count computed on read, Flutter rating summary + review list + submit/edit UI on Product Details, fully localized — backend verified end-to-end in a local sandbox MySQL instance
+- **Store Owner Dashboard Implemented**: New `products.is_active` column + migration, product create/update/deactivate + order status-transition endpoints reusing the existing role/ownership middleware unmodified, DB-fresh `GET /api/auth/me`, role-gated Flutter dashboard (4-tab shell: Dashboard/Products/Orders/Stores) reached from a new Profile button, fully localized (44 new keys) — backend verified end-to-end in a local sandbox MariaDB instance (47/47 regression + 54/54 new checks)
 
 ## 12. Current Status
 
@@ -1085,6 +1186,7 @@ database/
 - **Address API**: ✅ Completed
 - **Category API**: ✅ Completed
 - **Review API**: ✅ Completed (create/edit/delete/list/eligibility, purchase-verified, ownership-enforced) — verified end-to-end against a local sandbox MySQL instance (seeded data, real HTTP requests via curl); see §14/report for details
+- **Store Owner Dashboard API**: ✅ Completed (store list, dashboard stats, product create/update/deactivate, order detail/status-update — see §6) — verified end-to-end against a local sandbox MariaDB instance (47/47 regression + 54/54 new checks)
 - **Admin Features**: ❌ Not started
 
 ### Flutter
@@ -1100,11 +1202,12 @@ database/
 - **Favorites Screen**: ✅ Completed
 - **Addresses Screen**: ✅ Completed
 - **Reviews (Product Details integration)**: ✅ Implemented (rating summary, review list, write/edit/delete flow); statically verified only — see caveat below
+- **Store Owner Dashboard**: ✅ Implemented (dashboard home, product management, order management, store switcher, role-gated Profile entry point — see §8); statically verified only — see caveat below
 - **MVVM Architecture**: ✅ Completed (implemented for all features)
 - **API Service Layer**: ✅ Completed
 - **State Management**: ✅ Completed (ChangeNotifier pattern)
 - **JWT Token Storage**: ✅ Completed (SharedPreferences)
-- **Localization (English/Arabic)**: ✅ Implemented, statically verified (ARB key parity, no leftover hardcoded strings; 270 keys, full EN/AR parity confirmed programmatically after adding review-related keys). ⚠️ `flutter analyze`/`flutter pub get`/on-device build not run this session — Flutter/Dart SDK download was blocked by the cloud sandbox's network policy (confirmed again this session: `pub.dev`/`storage.googleapis.com` both return a blocked CONNECT tunnel) and no local device shell was available. Run these locally to confirm before treating the Flutter side as fully verified.
+- **Localization (English/Arabic)**: ✅ Implemented, statically verified (ARB key parity, no leftover hardcoded strings; 320 keys, full EN/AR parity confirmed programmatically after adding Store Owner Dashboard strings; the 20 Reviews-feature keys missing from the generated Dart files were also found and fixed — see the Localization Correction note in §8). ⚠️ `flutter analyze`/`flutter pub get`/on-device build not run this session — Flutter/Dart SDK download was blocked by the cloud sandbox's network policy (confirmed again this session: `pub.dev`/`storage.googleapis.com` both return a blocked CONNECT tunnel) and no local device shell was available. Run these locally to confirm before treating the Flutter side as fully verified.
 
 ### Database
 - **Initial Schema**: ✅ Completed
@@ -1139,7 +1242,8 @@ database/
 
 ### Long-Term Features
 - Admin dashboard
-- Store owner accounts
+- Store creation flow for store owners (v1 of the Store Owner Dashboard is list/switch/manage only)
+- Product image upload (currently URL-based only)
 - Delivery driver integration
 - Payment processing
 - Multi-city expansion
@@ -1242,4 +1346,4 @@ database/
 
 **Document Maintenance**: This file must be updated after every significant project change to maintain its accuracy as the primary context document for future development sessions.
 
-**Last Updated**: 2026-08-22 (Product Reviews & Ratings implementation completed)
+**Last Updated**: 2026-08-29 (Store Owner Dashboard implementation completed)
