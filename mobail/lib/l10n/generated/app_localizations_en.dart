@@ -176,10 +176,28 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cancelled => 'Cancelled';
 
   @override
-  String get addressLabel => 'Label';
+  String get city => 'City';
 
   @override
-  String get recipientName => 'Recipient Name';
+  String get cityHint => 'e.g., Aleppo';
+
+  @override
+  String get cityRequired => 'City is required';
+
+  @override
+  String get area => 'Area';
+
+  @override
+  String get areaHint => 'e.g., Al-Furqan (optional)';
+
+  @override
+  String get addressDetails => 'Details';
+
+  @override
+  String get addressDetailsHint => 'Street, building, floor, etc.';
+
+  @override
+  String get addressDetailsRequired => 'Details are required';
 
   @override
   String get deliveryAddress => 'Delivery Address';
@@ -498,28 +516,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get deleteAddressConfirm => 'Are you sure you want to delete this address?';
 
   @override
-  String get labelHint => 'e.g., Home, Work';
-
-  @override
-  String get labelRequired => 'Label is required';
-
-  @override
-  String get recipientNameHint => 'Enter recipient name';
-
-  @override
-  String get recipientNameRequired => 'Recipient name is required';
-
-  @override
-  String get phoneHintGeneric => 'Enter phone number';
-
-  @override
-  String get phoneRequired => 'Phone is required';
-
-  @override
   String get deliveryAddressHint => 'Enter delivery address';
-
-  @override
-  String get addressRequired => 'Address is required';
 
   @override
   String get setAsDefaultAddress => 'Set as default address';
@@ -573,6 +570,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get variantOutOfStockMessage => 'This variant is out of stock';
+
+  @override
+  String get insufficientStockMessage => 'Not enough stock available for the requested quantity';
+
+  @override
+  String get maxStockReachedMessage => 'Maximum available quantity reached';
 
   @override
   String get addedToCartSuccess => 'Added to cart successfully';
@@ -892,6 +895,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get productDeactivateFailed => 'Failed to deactivate product. Please try again.';
+
+  @override
+  String get reactivateProduct => 'Reactivate';
+
+  @override
+  String get productReactivatedSuccess => 'Product reactivated';
+
+  @override
+  String get productReactivateFailed => 'Failed to reactivate product. Please try again.';
 
   @override
   String get inactiveLabel => 'Inactive';

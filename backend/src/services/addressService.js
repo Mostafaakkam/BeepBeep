@@ -30,13 +30,17 @@ const getAddress = async (id, userId) => {
 
 const createAddress = async (userId, addressData) => {
   try {
-    // Validate required fields
-    if (!addressData.label || !addressData.recipient_name || !addressData.phone || !addressData.address) {
+    // Validate required fields. Stabilization fix (2026-08-30): the live
+    // `addresses` table only has (city, area, details, is_default) -- city
+    // is NOT NULL on the live schema, and details is the actual address
+    // text, so both are required here; area is genuinely optional (nullable
+    // column, e.g. a city without a named neighborhood).
+    if (!addressData.city || !addressData.details) {
       const error = new Error('Missing required fields');
       error.code = 'VALIDATION_ERROR';
       throw error;
     }
-    
+
     // If this is the first address, make it default automatically
     const existingAddresses = await addressRepository.getAll(userId);
     if (existingAddresses.length === 0) {
@@ -56,8 +60,9 @@ const createAddress = async (userId, addressData) => {
 
 const updateAddress = async (id, userId, addressData) => {
   try {
-    // Validate required fields
-    if (!addressData.label || !addressData.recipient_name || !addressData.phone || !addressData.address) {
+    // Validate required fields (see createAddress above for why only city
+    // and details are required).
+    if (!addressData.city || !addressData.details) {
       const error = new Error('Missing required fields');
       error.code = 'VALIDATION_ERROR';
       throw error;

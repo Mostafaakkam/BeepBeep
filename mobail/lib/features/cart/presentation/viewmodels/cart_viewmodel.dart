@@ -18,6 +18,14 @@ class StoreMismatchException implements Exception {
   StoreMismatchException({this.currentStore, this.requestedStore});
 }
 
+// Stock validation: thrown by CartViewModel.addItem/updateItemQuantity when
+// the backend rejects the request with INSUFFICIENT_STOCK (see
+// backend/src/services/cartService.js). Kept as a typed exception, same as
+// StoreMismatchException above, so the page (which has access to
+// AppLocalizations) can show a localized message instead of the viewmodel
+// storing a hardcoded English string in _errorMessage.
+class InsufficientStockException implements Exception {}
+
 enum CartState {
   initial,
   loading,
@@ -97,6 +105,9 @@ class CartViewModel extends ChangeNotifier {
           requestedStore: e.data?['requestedStore'] as Map<String, dynamic>?,
         );
       }
+      if (e.code == 'INSUFFICIENT_STOCK') {
+        throw InsufficientStockException();
+      }
       _errorMessage = 'Failed to add item to cart. Please try again.';
       notifyListeners();
     } catch (e) {
@@ -154,9 +165,15 @@ class CartViewModel extends ChangeNotifier {
         cartItemId: cartItemId,
         quantity: quantity,
       );
-      
+
       // Reload cart to get updated state
       await loadCart();
+    } on ApiException catch (e) {
+      if (e.code == 'INSUFFICIENT_STOCK') {
+        throw InsufficientStockException();
+      }
+      _errorMessage = 'Failed to update cart. Please try again.';
+      notifyListeners();
     } catch (e) {
       _errorMessage = 'Failed to update cart. Please try again.';
       notifyListeners();
@@ -165,7 +182,7 @@ class CartViewModel extends ChangeNotifier {
       notifyListeners();
     }
   }
-  
+
   Future<void> removeItem(int cartItemId) async {
     if (_isOperationInProgress) return;
     

@@ -435,17 +435,53 @@ abstract class AppLocalizations {
   /// **'Cancelled'**
   String get cancelled;
 
-  /// No description provided for @addressLabel.
+  /// No description provided for @city.
   ///
   /// In en, this message translates to:
-  /// **'Label'**
-  String get addressLabel;
+  /// **'City'**
+  String get city;
 
-  /// No description provided for @recipientName.
+  /// No description provided for @cityHint.
   ///
   /// In en, this message translates to:
-  /// **'Recipient Name'**
-  String get recipientName;
+  /// **'e.g., Aleppo'**
+  String get cityHint;
+
+  /// No description provided for @cityRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'City is required'**
+  String get cityRequired;
+
+  /// No description provided for @area.
+  ///
+  /// In en, this message translates to:
+  /// **'Area'**
+  String get area;
+
+  /// No description provided for @areaHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g., Al-Furqan (optional)'**
+  String get areaHint;
+
+  /// No description provided for @addressDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Details'**
+  String get addressDetails;
+
+  /// No description provided for @addressDetailsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Street, building, floor, etc.'**
+  String get addressDetailsHint;
+
+  /// No description provided for @addressDetailsRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Details are required'**
+  String get addressDetailsRequired;
 
   /// No description provided for @deliveryAddress.
   ///
@@ -1059,53 +1095,11 @@ abstract class AppLocalizations {
   /// **'Are you sure you want to delete this address?'**
   String get deleteAddressConfirm;
 
-  /// No description provided for @labelHint.
-  ///
-  /// In en, this message translates to:
-  /// **'e.g., Home, Work'**
-  String get labelHint;
-
-  /// No description provided for @labelRequired.
-  ///
-  /// In en, this message translates to:
-  /// **'Label is required'**
-  String get labelRequired;
-
-  /// No description provided for @recipientNameHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Enter recipient name'**
-  String get recipientNameHint;
-
-  /// No description provided for @recipientNameRequired.
-  ///
-  /// In en, this message translates to:
-  /// **'Recipient name is required'**
-  String get recipientNameRequired;
-
-  /// No description provided for @phoneHintGeneric.
-  ///
-  /// In en, this message translates to:
-  /// **'Enter phone number'**
-  String get phoneHintGeneric;
-
-  /// No description provided for @phoneRequired.
-  ///
-  /// In en, this message translates to:
-  /// **'Phone is required'**
-  String get phoneRequired;
-
   /// No description provided for @deliveryAddressHint.
   ///
   /// In en, this message translates to:
   /// **'Enter delivery address'**
   String get deliveryAddressHint;
-
-  /// No description provided for @addressRequired.
-  ///
-  /// In en, this message translates to:
-  /// **'Address is required'**
-  String get addressRequired;
 
   /// No description provided for @setAsDefaultAddress.
   ///
@@ -1208,6 +1202,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This variant is out of stock'**
   String get variantOutOfStockMessage;
+
+  /// No description provided for @insufficientStockMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Not enough stock available for the requested quantity'**
+  String get insufficientStockMessage;
+
+  /// No description provided for @maxStockReachedMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Maximum available quantity reached'**
+  String get maxStockReachedMessage;
 
   /// No description provided for @addedToCartSuccess.
   ///
@@ -1826,6 +1832,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Failed to deactivate product. Please try again.'**
   String get productDeactivateFailed;
+
+  /// No description provided for @reactivateProduct.
+  ///
+  /// In en, this message translates to:
+  /// **'Reactivate'**
+  String get reactivateProduct;
+
+  /// No description provided for @productReactivatedSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Product reactivated'**
+  String get productReactivatedSuccess;
+
+  /// No description provided for @productReactivateFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to reactivate product. Please try again.'**
+  String get productReactivateFailed;
 
   /// No description provided for @inactiveLabel.
   ///

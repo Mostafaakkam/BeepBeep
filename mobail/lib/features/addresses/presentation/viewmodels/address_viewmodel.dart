@@ -38,10 +38,19 @@ class AddressViewModel extends ChangeNotifier {
     
     try {
       _addresses = await _repository.getAddresses();
-      _defaultAddress = _addresses.firstWhere(
-        (addr) => addr.isDefault,
-        orElse: () => _addresses.isEmpty ? _addresses.first : _addresses.first,
-      );
+      // Bug found during this pass (not the reported symptom, but a real,
+      // adjacent defect in the same method): both branches of this ternary
+      // called _addresses.first, so a genuinely empty address list (a brand
+      // new customer with zero saved addresses) threw StateError ("No
+      // element") inside this try block, which was then swallowed by the
+      // catch below and misreported as a load *error* instead of a
+      // legitimate empty list.
+      _defaultAddress = _addresses.isEmpty
+          ? null
+          : _addresses.firstWhere(
+              (addr) => addr.isDefault,
+              orElse: () => _addresses.first,
+            );
       _state = AddressState.success;
       notifyListeners();
     } catch (e) {

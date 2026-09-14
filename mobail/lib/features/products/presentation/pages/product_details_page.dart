@@ -281,6 +281,18 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
           ),
         );
       }
+    } on InsufficientStockException {
+      // Stock validation: the backend rejected this add because the
+      // customer already holds the available stock for this variant in
+      // their cart (existing_cart_quantity + requested_quantity > stock).
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(l10n.insufficientStockMessage),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
     } on StoreMismatchException {
       // Single-Store Cart Rule: the cart already contains items from a
       // different store. Ask the customer whether to clear it and switch,

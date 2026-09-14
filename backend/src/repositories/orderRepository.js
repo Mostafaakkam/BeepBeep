@@ -2,6 +2,28 @@ const pool = require('../config/database');
 
 const DELIVERY_FEE = 5.00; // Configurable delivery fee for MVP
 
+// orders.subtotal/delivery_fee/total and order_items.unit_price/subtotal are
+// DECIMAL columns; mysql2 returns DECIMAL as JS strings (no decimalNumbers:
+// true on the pool -- see config/database.js). Flutter's Order.fromJson /
+// OrderItem.fromJson both do `(json[...] as num).toDouble()`, which throws on
+// a String -- confirmed live (GET /api/orders returned "subtotal":"100.00").
+// Same root cause, same fix shape as the earlier Cart (cartService.js) and
+// Product Details (productRepository.js) DECIMAL fixes: normalize to a real
+// number at the one place each value enters the response, instead of
+// touching the DB schema or the global mysql2 config.
+const normalizeOrder = (order) => ({
+  ...order,
+  subtotal: order.subtotal !== null ? parseFloat(order.subtotal) : null,
+  delivery_fee: order.delivery_fee !== null ? parseFloat(order.delivery_fee) : null,
+  total: order.total !== null ? parseFloat(order.total) : null,
+});
+
+const normalizeOrderItem = (item) => ({
+  ...item,
+  unit_price: item.unit_price !== null ? parseFloat(item.unit_price) : null,
+  subtotal: item.subtotal !== null ? parseFloat(item.subtotal) : null,
+});
+
 const findByUserId = async (userId) => {
   const [orders] = await pool.execute(
     `SELECT id, user_id, store_id, status, payment_method, payment_status, subtotal, delivery_fee, total,
@@ -11,7 +33,7 @@ const findByUserId = async (userId) => {
      ORDER BY created_at DESC`,
     [userId]
   );
-  return orders;
+  return orders.map(normalizeOrder);
 };
 
 // Fixed bug (previously found by audit): this query used to join order_items
@@ -35,7 +57,7 @@ const findById = async (id, userId) => {
 
   if (orders.length === 0) return null;
 
-  const order = orders[0];
+  const order = normalizeOrder(orders[0]);
 
   // Resolve store info once via orders.store_id, not per item.
   let storeName = null;
@@ -66,7 +88,7 @@ const findById = async (id, userId) => {
   );
 
   order.items = items.map((item) => ({
-    ...item,
+    ...normalizeOrderItem(item),
     store_name: storeName,
     store_address: storeAddress
   }));
@@ -281,7 +303,7 @@ const findByStoreId = async (storeId, status) => {
   query += ' ORDER BY created_at DESC';
 
   const [orders] = await pool.execute(query, params);
-  return orders;
+  return orders.map(normalizeOrder);
 };
 
 // Store Owner Dashboard: order detail scoped to a store rather than a
@@ -302,7 +324,7 @@ const findByIdForStore = async (id, storeId) => {
 
   if (orders.length === 0) return null;
 
-  const order = orders[0];
+  const order = normalizeOrder(orders[0]);
 
   const [stores] = await pool.execute(
     'SELECT name, address FROM stores WHERE id = ?',
@@ -321,7 +343,7 @@ const findByIdForStore = async (id, storeId) => {
   );
 
   order.items = items.map((item) => ({
-    ...item,
+    ...normalizeOrderItem(item),
     store_name: storeName,
     store_address: storeAddress
   }));

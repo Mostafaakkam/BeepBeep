@@ -47,10 +47,13 @@ class _CheckoutPageState extends State<CheckoutPage> {
     }
   }
 
+  // Stabilization fix (2026-08-30): AddressModel no longer carries
+  // recipientName/phone (the live `addresses` table never had those columns
+  // -- see the address-schema stabilization report). Only the address text
+  // itself can be prefilled from a saved address now; name and phone are
+  // still typed directly at checkout, same as when no saved address is used.
   void _populateFormFromAddress(AddressModel address) {
-    _nameController.text = address.recipientName;
-    _phoneController.text = address.phone;
-    _addressController.text = address.address;
+    _addressController.text = address.details ?? '';
   }
 
   @override
@@ -384,6 +387,31 @@ class _CheckoutPageState extends State<CheckoutPage> {
               labelText: l10n.selectAddress,
               border: const OutlineInputBorder(),
             ),
+            isExpanded: true,
+            // The closed field renders the selected item's widget inside a
+            // fixed-height box sized for one line of text (InputDecorator's
+            // default content area). The two-line city/details Column below
+            // is fine as a dropdown *menu* entry (the open menu sizes each
+            // row to its content), but used as-is for the closed display it
+            // overflows that fixed box -- the "BOTTOM OVERFLOWED BY 18
+            // PIXELS" error. selectedItemBuilder lets the closed display use
+            // a different, single-line widget while the open menu keeps the
+            // full two-line `items` below unchanged.
+            selectedItemBuilder: (context) {
+              return _addressViewModel.addresses.map((address) {
+                return Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: Text(
+                    address.details != null && address.details!.isNotEmpty
+                        ? '${address.city} - ${address.details}'
+                        : address.city,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: AppColors.darkNavy),
+                  ),
+                );
+              }).toList();
+            },
             items: _addressViewModel.addresses.map((address) {
               return DropdownMenuItem<AddressModel>(
                 value: address,
@@ -391,13 +419,13 @@ class _CheckoutPageState extends State<CheckoutPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      address.label,
+                      address.city,
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     Text(
-                      address.address,
+                      address.details ?? '',
                       style: const TextStyle(
                         fontSize: 12,
                         color: AppColors.gray,
@@ -435,14 +463,14 @@ class _CheckoutPageState extends State<CheckoutPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        _selectedAddress!.label,
+                        _selectedAddress!.city,
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           color: AppColors.darkNavy,
                         ),
                       ),
                       Text(
-                        _selectedAddress!.address,
+                        _selectedAddress!.details ?? '',
                         style: const TextStyle(
                           fontSize: 12,
                           color: AppColors.gray,

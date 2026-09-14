@@ -219,6 +219,38 @@ const getVariantWithStock = async (variantId) => {
   return variants[0] || null;
 };
 
+// Stock validation (cartService.addItem): the quantity already sitting in
+// this user's cart for this variant, so the service can enforce
+// existing_cart_quantity + requested_quantity <= current_stock instead of
+// only checking the newly requested quantity in isolation -- otherwise two
+// adds of the same variant could together exceed stock even though each add
+// individually looked fine.
+const getExistingQuantityForVariant = async (userId, variantId) => {
+  const [rows] = await pool.execute(
+    `SELECT ci.quantity FROM cart_items ci
+     JOIN carts c ON ci.cart_id = c.id
+     WHERE c.user_id = ? AND ci.variant_id = ?`,
+    [userId, variantId]
+  );
+  return rows.length > 0 ? rows[0].quantity : 0;
+};
+
+// Stock validation (cartService.updateItemQuantity): resolves the cart
+// item's current stock (via its variant) in the same ownership-scoped query
+// shape as the existing updateItemQuantity/removeItem verify queries, so the
+// service can reject a quantity increase (e.g. the cart page's "+" button)
+// that would exceed available stock.
+const getItemWithStock = async (cartItemId, userId) => {
+  const [rows] = await pool.execute(
+    `SELECT ci.id, ci.cart_id, pv.stock FROM cart_items ci
+     JOIN carts c ON ci.cart_id = c.id
+     JOIN product_variants pv ON ci.variant_id = pv.id
+     WHERE ci.id = ? AND c.user_id = ?`,
+    [cartItemId, userId]
+  );
+  return rows[0] || null;
+};
+
 const getProductInfo = async (productId) => {
   const [products] = await pool.execute(
     'SELECT id, name, store_id FROM products WHERE id = ?',
@@ -238,5 +270,7 @@ module.exports = {
   getVariantWithStock,
   getProductInfo,
   setCartStoreId,
-  switchStore
+  switchStore,
+  getExistingQuantityForVariant,
+  getItemWithStock
 };

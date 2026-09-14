@@ -101,7 +101,18 @@ const findById = async (id) => {
     'SELECT id, color, size, price, stock FROM product_variants WHERE product_id = ? ORDER BY id ASC',
     [id]
   );
-  product.variants = variants;
+  // mysql2 returns DECIMAL columns (product_variants.price) as strings, not
+  // JS numbers, since the pool is not configured with decimalNumbers: true
+  // (config/database.js). Flutter's ProductVariant.fromJson does
+  // `(json['price'] as num).toDouble()`, which throws on a String, which is
+  // the actual, confirmed (live-tested) cause of every Product Details page
+  // failing to load. Normalizing to a real number here, at the one place
+  // this value enters the single-product response, fixes it at the exact
+  // point of failure without touching the DB schema or any other endpoint.
+  product.variants = variants.map((variant) => ({
+    ...variant,
+    price: parseFloat(variant.price),
+  }));
 
   // Get rating summary (average rating + review count), computed on read
   // from the reviews table rather than stored as denormalized columns.
@@ -166,9 +177,17 @@ const findByStoreIdForOwner = async (storeId) => {
 
   return products.map((p) => ({
     ...p,
+    // Same DECIMAL-as-string issue as findById() above (product_variants.price
+    // is DECIMAL; mysql2 returns it as a JS string without decimalNumbers:
+    // true -- see config/database.js). findById() already normalizes this for
+    // the customer-facing product detail response; this owner-facing list
+    // never got the same fix, so the Store Owner Products tab would crash on
+    // `(json['price'] as num).toDouble()` in ProductVariant.fromJson -- same
+    // root cause, same fix, confirmed live (GET /api/stores/:id/products
+    // returned "price":"25.00").
     variants: variants
       .filter((v) => v.product_id === p.id)
-      .map(({ product_id, ...rest }) => rest),
+      .map(({ product_id, ...rest }) => ({ ...rest, price: parseFloat(rest.price) })),
     images: images
       .filter((i) => i.product_id === p.id)
       .map(({ product_id, ...rest }) => rest)

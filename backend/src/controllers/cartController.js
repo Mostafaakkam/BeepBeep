@@ -63,7 +63,8 @@ const addItem = async (req, res) => {
     if (error.code === 'INSUFFICIENT_STOCK') {
       return res.status(400).json({
         success: false,
-        message: 'Insufficient stock available'
+        message: 'Insufficient stock available',
+        code: 'INSUFFICIENT_STOCK'
       });
     }
 
@@ -170,7 +171,15 @@ const updateItemQuantity = async (req, res) => {
         message: 'Quantity cannot be negative'
       });
     }
-    
+
+    if (error.code === 'INSUFFICIENT_STOCK') {
+      return res.status(400).json({
+        success: false,
+        message: 'Insufficient stock available',
+        code: 'INSUFFICIENT_STOCK'
+      });
+    }
+
     if (error.message === 'Cart item not found or access denied') {
       return res.status(404).json({
         success: false,

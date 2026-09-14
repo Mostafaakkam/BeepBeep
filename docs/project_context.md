@@ -264,7 +264,7 @@ The Flutter app follows MVVM architecture:
 - Foreign Keys: user_id, `store_id` → `stores(id)` (nullable — `NULL` on legacy orders created before this migration; new orders always get it populated, see below)
 - `store_id` is derived and validated **server-side only**, from the cart's actual items at the moment of checkout — it is never accepted from the client. A cart that somehow contains items from more than one store (bypassing the cart-level `STORE_MISMATCH` check) is rejected at checkout with `MULTI_STORE_CART` instead of being allowed through.
 - Index: `idx_orders_store_id`
-- Status values: `pending`, `confirmed`, `preparing`, `shipped`, `delivered`, `cancelled` (no DB `ENUM`/`CHECK` constraint on this column — the value set is enforced entirely at the application layer, see `orderService.VALID_TRANSITIONS` below). *(Correction — this list previously read "pending, confirmed, shipping, delivered, cancelled"; `preparing`/`shipped` is the actual set already in use by `Order.formattedStatus` in the Flutter model and is now also the single source of truth enforced server-side by the Store Owner Dashboard's status-update endpoint.)*
+- Status values: `pending`, `confirmed`, `preparing`, `shipped`, `delivered`, `cancelled`. **Correction (2026-08-30 stabilization audit):** this column IS a real MySQL/MariaDB `ENUM` constraint (the previous claim on this line that there was "no DB ENUM/CHECK constraint" was never actually verified against the live database and was wrong). The live database's enum was found to still be `enum('pending','confirmed','shipping','delivered','cancelled')` — missing `preparing`/`shipped` entirely, which `orderService.VALID_TRANSITIONS` (the application's single source of truth) requires. Any status update past `confirmed` would be rejected outright by the database. Fixed via `database/migrations/004_widen_order_status_enum.sql`, which widens the enum to `enum('pending','confirmed','preparing','shipping','shipped','delivered','cancelled')` (keeps the unused legacy `shipping` value for backward compatibility rather than removing it). **This migration must be applied to the live database by hand before store-owner order fulfillment past "confirmed" will work.**
 - Status transitions: `pending → confirmed → preparing → shipped → delivered`, one step at a time, no skipping, no going backward — enforced by `orderService.VALID_TRANSITIONS` (Store Owner Dashboard, `PATCH /api/stores/:storeId/orders/:orderId/status`, see §6). `pending → cancelled` remains exclusively on the pre-existing customer-only `PATCH /api/orders/:id/cancel` endpoint; a store owner can never set `cancelled`.
 - Relationships: Belongs to one user, contains many order items; belongs to **exactly one** store (Single-Store Order Rule — "one order must contain products from one store only")
 - Status: In use
@@ -554,6 +554,11 @@ All endpoints below reuse the pre-existing `authenticate` / `requireRole` / `req
 - Authentication: Required; Authorization: `requireRole('store_owner', 'admin')` then `requireProductOwnership('id')`
 - Status Codes: 200 (success), 401, 403, 404, 500
 
+**PATCH /api/products/:id/reactivate** *(new, 2026-08-30 stabilization audit)*
+- Purpose: Mirror image of `/deactivate` above — sets `is_active = 1`, so a deactivated product can be turned back on. `productRepository.setActive()` always supported this; nothing called it with `true` until this fix, so there was previously no way to undo a deactivation.
+- Authentication: Required; Authorization: `requireRole('store_owner', 'admin')` then `requireProductOwnership('id')` (identical chain to `/deactivate`)
+- Status Codes: 200 (success), 401, 403, 404, 500
+
 **GET /api/stores/:storeId/orders/:orderId** *(new)*
 - Purpose: Order detail scoped to one store (store-owner sibling of the customer-scoped `GET /api/orders/:id`)
 - Authentication: Required; Authorization: `requireRole('store_owner', 'admin')` then `requireStoreOwnership('storeId')`
@@ -626,9 +631,9 @@ All endpoints below reuse the pre-existing `authenticate` / `requireRole` / `req
   - `requireRole(...allowedRoles)` — re-fetches the user's **current** role from the database (via `userRepository.findById`) rather than trusting the JWT's `role` claim, and refreshes `req.user.role`. This closes a stale-token privilege window: a role change (promotion or demotion) in the database takes effect on the very next request made with an already-issued token, without waiting for the token to expire or be reissued. Responds 403 if the (fresh) role is not in `allowedRoles`.
   - `requireStoreOwnership(paramName = 'storeId')` / `requireProductOwnership(paramName = 'id')` — resolve the target store/product from the route param, look up its owner server-side (`storeRepository.findOwnerId` / `productRepository.findStoreIdById`, both distinct from the public-facing `findById` methods so `owner_id` is never exposed on public endpoints), and allow the request only if the authenticated user is that owner, **or** has the `admin` role (ownership bypass, for future admin functionality). Otherwise 403. On success, attaches the resolved resource (`req.store` / `req.product`) for the controller to use.
   - Client-supplied owner/store/user IDs in the request body are never trusted for authorization — ownership is always resolved from the database via the route param, independent of anything in the request body.
-  - `requireProductOwnership` *(Store Owner Dashboard)*: now mounted on `PUT /api/products/:id` and `PATCH /api/products/:id/deactivate` — the first product-management endpoints in the app. No changes were made to the middleware itself; it was implemented and tested in the prior feature and reused as-is.
+  - `requireProductOwnership` *(Store Owner Dashboard)*: now mounted on `PUT /api/products/:id`, `PATCH /api/products/:id/deactivate`, and `PATCH /api/products/:id/reactivate` (added 2026-08-30) — the product-management endpoints in the app. No changes were made to the middleware itself; it was implemented and tested in the prior feature and reused as-is.
   - `requireStoreOwnership` *(Store Owner Dashboard)*: also now mounted on every new `/api/stores/:storeId/...` dashboard endpoint (§6) — same unmodified middleware, same admin-bypass behavior.
-- Applied to `GET /api/stores/:storeId/orders` and the full Store Owner Dashboard endpoint set (`GET /api/stores/mine`, `GET/POST /api/stores/:storeId/products`, `PUT /api/products/:id`, `PATCH /api/products/:id/deactivate`, `GET /api/stores/:storeId/orders/:orderId`, `PATCH /api/stores/:storeId/orders/:orderId/status`) — see §6.
+- Applied to `GET /api/stores/:storeId/orders` and the full Store Owner Dashboard endpoint set (`GET /api/stores/mine`, `GET/POST /api/stores/:storeId/products`, `PUT /api/products/:id`, `PATCH /api/products/:id/deactivate`, `PATCH /api/products/:id/reactivate`, `GET /api/stores/:storeId/orders/:orderId`, `PATCH /api/stores/:storeId/orders/:orderId/status`) — see §6.
 - Existing customer authentication behavior (register/login/JWT/`authenticate` middleware) is unchanged by this feature.
 
 **Known Limitations**
@@ -1171,6 +1176,7 @@ Run manually, in order, against your local `beep_beep` database — no automated
 - **Localization Implemented**: App-wide English/Arabic localization via `flutter_localizations` + ARB/gen_l10n, RTL/LTR support, language selector with persistence — infrastructure step completed ahead of Product Reviews & Ratings
 - **Product Reviews & Ratings Implemented**: New `reviews` table + migration, review API (create/edit/delete/list/eligibility) with purchase verification and ownership enforcement, product average rating and review count computed on read, Flutter rating summary + review list + submit/edit UI on Product Details, fully localized — backend verified end-to-end in a local sandbox MySQL instance
 - **Store Owner Dashboard Implemented**: New `products.is_active` column + migration, product create/update/deactivate + order status-transition endpoints reusing the existing role/ownership middleware unmodified, DB-fresh `GET /api/auth/me`, role-gated Flutter dashboard (4-tab shell: Dashboard/Products/Orders/Stores) reached from a new Profile button, fully localized (44 new keys) — backend verified end-to-end in a local sandbox MariaDB instance (47/47 regression + 54/54 new checks)
+- **Stabilization Audit (2026-08-30)**: Live database verified directly via phpMyAdmin (not a sandbox) — migrations 001–003 confirmed applied correctly (all expected tables/columns/FKs/indexes present, seed data consistent with roles/ownership). Found and fixed a critical, previously-undetected schema mismatch: the live `orders.status` enum was missing `preparing`/`shipped`, so store-owner order status updates past `confirmed` would fail (see `database/migrations/004_widen_order_status_enum.sql` — written and verified, application to the live database is the user's own next manual step). Found and closed a confirmed gap: product reactivation (`is_active: 0 → 1`) had backend repository support but no route/service/Flutter wiring at all — implemented end-to-end (`PATCH /api/products/:id/reactivate`, `StoreOwnerRepository`/`OwnerProductViewModel`/UI, 3 new EN/AR keys). No other confirmed issues found in role gating, ownership enforcement, single-store cart/order enforcement, or customer-flow regression risk.
 
 ## 12. Current Status
 
@@ -1186,7 +1192,7 @@ Run manually, in order, against your local `beep_beep` database — no automated
 - **Address API**: ✅ Completed
 - **Category API**: ✅ Completed
 - **Review API**: ✅ Completed (create/edit/delete/list/eligibility, purchase-verified, ownership-enforced) — verified end-to-end against a local sandbox MySQL instance (seeded data, real HTTP requests via curl); see §14/report for details
-- **Store Owner Dashboard API**: ✅ Completed (store list, dashboard stats, product create/update/deactivate, order detail/status-update — see §6) — verified end-to-end against a local sandbox MariaDB instance (47/47 regression + 54/54 new checks)
+- **Store Owner Dashboard API**: ✅ Completed (store list, dashboard stats, product create/update/deactivate/reactivate, order detail/status-update — see §6) — verified end-to-end against a local sandbox MariaDB instance (47/47 regression + 54/54 new checks); live database schema separately verified 2026-08-30 (see Stabilization Audit note above)
 - **Admin Features**: ❌ Not started
 
 ### Flutter
@@ -1346,4 +1352,4 @@ Run manually, in order, against your local `beep_beep` database — no automated
 
 **Document Maintenance**: This file must be updated after every significant project change to maintain its accuracy as the primary context document for future development sessions.
 
-**Last Updated**: 2026-08-29 (Store Owner Dashboard implementation completed)
+**Last Updated**: 2026-08-30 (Stabilization audit: live database verified, orders.status enum gap found/fixed via migration 004, product reactivation gap closed)

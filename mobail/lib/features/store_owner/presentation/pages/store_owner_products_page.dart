@@ -205,6 +205,12 @@ class _StoreOwnerProductsPageState extends State<StoreOwnerProductsPage> {
                         onPressed: () => _confirmDeactivate(context, product),
                         style: TextButton.styleFrom(foregroundColor: AppColors.error),
                         child: Text(l10n.deactivateProduct),
+                      )
+                    else
+                      TextButton(
+                        onPressed: () => _reactivate(context, product),
+                        style: TextButton.styleFrom(foregroundColor: AppColors.success),
+                        child: Text(l10n.reactivateProduct),
                       ),
                   ],
                 ),
@@ -277,6 +283,32 @@ class _StoreOwnerProductsPageState extends State<StoreOwnerProductsPage> {
           ),
         );
       }
+    }
+  }
+
+  // Stabilization fix: reactivating is a low-risk, easily reversible action
+  // (an owner can deactivate again immediately if it was a mistake), so --
+  // unlike _confirmDeactivate above -- this deliberately skips a confirm
+  // dialog and just performs the action with snackbar feedback.
+  Future<void> _reactivate(BuildContext context, Product product) async {
+    final l10n = AppLocalizations.of(context);
+    try {
+      await widget.productViewModel.reactivateProduct(product.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(l10n.productReactivatedSuccess),
+          backgroundColor: AppColors.success,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(l10n.productReactivateFailed),
+          backgroundColor: AppColors.error,
+        ),
+      );
     }
   }
 }

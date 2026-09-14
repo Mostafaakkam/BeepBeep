@@ -176,10 +176,28 @@ class AppLocalizationsAr extends AppLocalizations {
   String get cancelled => 'ملغى';
 
   @override
-  String get addressLabel => 'التسمية';
+  String get city => 'المدينة';
 
   @override
-  String get recipientName => 'اسم المستلم';
+  String get cityHint => 'مثال: حلب';
+
+  @override
+  String get cityRequired => 'المدينة مطلوبة';
+
+  @override
+  String get area => 'المنطقة';
+
+  @override
+  String get areaHint => 'مثال: الفرقان (اختياري)';
+
+  @override
+  String get addressDetails => 'التفاصيل';
+
+  @override
+  String get addressDetailsHint => 'الشارع، البناء، الطابق، إلخ.';
+
+  @override
+  String get addressDetailsRequired => 'التفاصيل مطلوبة';
 
   @override
   String get deliveryAddress => 'عنوان التوصيل';
@@ -498,28 +516,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get deleteAddressConfirm => 'هل أنت متأكد من حذف هذا العنوان؟';
 
   @override
-  String get labelHint => 'مثال: المنزل، العمل';
-
-  @override
-  String get labelRequired => 'التسمية مطلوبة';
-
-  @override
-  String get recipientNameHint => 'أدخل اسم المستلم';
-
-  @override
-  String get recipientNameRequired => 'اسم المستلم مطلوب';
-
-  @override
-  String get phoneHintGeneric => 'أدخل رقم الهاتف';
-
-  @override
-  String get phoneRequired => 'رقم الهاتف مطلوب';
-
-  @override
   String get deliveryAddressHint => 'أدخل عنوان التوصيل';
-
-  @override
-  String get addressRequired => 'العنوان مطلوب';
 
   @override
   String get setAsDefaultAddress => 'تعيين كعنوان افتراضي';
@@ -573,6 +570,12 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get variantOutOfStockMessage => 'هذا النوع غير متوفر حالياً';
+
+  @override
+  String get insufficientStockMessage => 'الكمية المطلوبة غير متوفرة في المخزون';
+
+  @override
+  String get maxStockReachedMessage => 'تم الوصول إلى الحد الأقصى من الكمية المتوفرة';
 
   @override
   String get addedToCartSuccess => 'تمت الإضافة إلى السلة بنجاح';
@@ -892,6 +895,15 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get productDeactivateFailed => 'فشل إلغاء تفعيل المنتج. يرجى المحاولة مرة أخرى.';
+
+  @override
+  String get reactivateProduct => 'إعادة التفعيل';
+
+  @override
+  String get productReactivatedSuccess => 'تمت إعادة تفعيل المنتج';
+
+  @override
+  String get productReactivateFailed => 'فشلت إعادة تفعيل المنتج. يرجى المحاولة مرة أخرى.';
 
   @override
   String get inactiveLabel => 'غير نشط';

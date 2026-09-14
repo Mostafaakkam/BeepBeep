@@ -60,9 +60,9 @@
 
 \## Quick Status
 
-\- \*\*Completed:\*\* Authentication, Home, Stores, Products (with filtering), Cart, Orders, Search, Favorites, Addresses, Categories.
+\- \*\*Completed:\*\* Authentication, Home, Stores, Products (with filtering), Cart, Checkout, Orders, Search, Favorites, Addresses, Categories, Localization (EN/AR), Reviews \& Ratings, Store Owner Dashboard (store management, product management incl. reactivation, order management with status transitions, role-based authorization, single-store-per-order enforcement).
 
-\- \*\*Not Started:\*\* Admin Dashboard, Store Owner Dashboard, Payment Gateways, Advanced Analytics.
+\- \*\*Not Started:\*\* Admin Dashboard, Payment Gateways, Advanced Analytics.
 
 
 
@@ -80,7 +80,7 @@
 
 \## Immediate Next Step (Context)
 
-Based on the current feature set, the next logical step is to implement the \*\*Product Reviews and Ratings\*\* system. Always verify this with `docs/AI\_PROJECT\_BRIEF.md` before starting.
+Store Owner Dashboard is implemented and stabilized (2026-08-30 stabilization audit: DB schema verified against live database, product reactivation gap closed, orders.status enum widened via migration 004 to match the order fulfillment state machine). The next logical step is the \*\*Admin Dashboard\*\*. Always verify this with `docs/AI\_PROJECT\_BRIEF.md` before starting.
 
 
 

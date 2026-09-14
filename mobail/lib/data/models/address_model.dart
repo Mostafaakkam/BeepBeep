@@ -1,85 +1,78 @@
+// Stabilization fix (2026-08-30): the live `addresses` table only ever had
+// (id, user_id, city, area, details, is_default) -- it never had label,
+// recipient_name, phone, address, created_at, or updated_at, which this
+// model used to assume (every address endpoint was returning 500 against
+// the real database as a result). This model now represents exactly the
+// columns that actually exist. Checkout is unaffected by this change: the
+// order-creation flow (checkout_page.dart / orderController.js) collects
+// customer_name, customer_phone, and delivery_address directly at checkout
+// time and does not read an order from a saved AddressModel -- the one
+// place checkout does read AddressModel fields (its "pick a saved address"
+// dropdown) was updated separately to use city/details instead of the
+// removed label/recipientName/phone/address fields.
 class AddressModel {
   final int id;
   final int userId;
-  final String label;
-  final String recipientName;
-  final String phone;
-  final String address;
+  final String city;
+  final String? area;
+  final String? details;
   final bool isDefault;
-  final DateTime createdAt;
-  final DateTime updatedAt;
-  
+
   AddressModel({
     required this.id,
     required this.userId,
-    required this.label,
-    required this.recipientName,
-    required this.phone,
-    required this.address,
+    required this.city,
+    this.area,
+    this.details,
     required this.isDefault,
-    required this.createdAt,
-    required this.updatedAt,
   });
-  
+
   factory AddressModel.fromJson(Map<String, dynamic> json) {
     return AddressModel(
       id: json['id'] as int,
       userId: json['user_id'] as int,
-      label: json['label'] as String,
-      recipientName: json['recipient_name'] as String,
-      phone: json['phone'] as String,
-      address: json['address'] as String,
+      city: json['city'] as String? ?? '',
+      area: json['area'] as String?,
+      details: json['details'] as String?,
       isDefault: (json['is_default'] as int) == 1,
-      createdAt: DateTime.parse(json['created_at'] as String),
-      updatedAt: DateTime.parse(json['updated_at'] as String),
     );
   }
-  
+
   Map<String, dynamic> toJson() {
     return {
       'id': id,
       'user_id': userId,
-      'label': label,
-      'recipient_name': recipientName,
-      'phone': phone,
-      'address': address,
+      'city': city,
+      'area': area,
+      'details': details,
       'is_default': isDefault ? 1 : 0,
-      'created_at': createdAt.toIso8601String(),
-      'updated_at': updatedAt.toIso8601String(),
     };
   }
-  
+
   Map<String, dynamic> toCreateJson() {
     return {
-      'label': label,
-      'recipient_name': recipientName,
-      'phone': phone,
-      'address': address,
+      'city': city,
+      'area': area,
+      'details': details,
       'is_default': isDefault,
     };
   }
-  
+
   AddressModel copyWith({
     int? id,
     int? userId,
-    String? label,
-    String? recipientName,
-    String? phone,
-    String? address,
+    String? city,
+    String? area,
+    String? details,
     bool? isDefault,
-    DateTime? createdAt,
-    DateTime? updatedAt,
   }) {
     return AddressModel(
       id: id ?? this.id,
       userId: userId ?? this.userId,
-      label: label ?? this.label,
-      recipientName: recipientName ?? this.recipientName,
-      phone: phone ?? this.phone,
-      address: address ?? this.address,
+      city: city ?? this.city,
+      area: area ?? this.area,
+      details: details ?? this.details,
       isDefault: isDefault ?? this.isDefault,
-      createdAt: createdAt ?? this.createdAt,
-      updatedAt: updatedAt ?? this.updatedAt,
     );
   }
 }

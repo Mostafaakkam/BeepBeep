@@ -131,6 +131,23 @@ class OwnerProductViewModel extends ChangeNotifier {
     }
   }
 
+  // Stabilization fix: mirror of deactivateProduct above, so a store owner
+  // can undo an accidental deactivation from the same product list.
+  Future<void> reactivateProduct(int productId) async {
+    _isOperationInProgress = true;
+    notifyListeners();
+
+    try {
+      await _repository.reactivateProduct(productId);
+      if (_storeId != null) {
+        await loadProducts(_storeId!);
+      }
+    } finally {
+      _isOperationInProgress = false;
+      notifyListeners();
+    }
+  }
+
   @override
   void dispose() {
     _repository.dispose();

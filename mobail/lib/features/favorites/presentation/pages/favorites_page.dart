@@ -6,6 +6,7 @@ import '../viewmodels/favorite_viewmodel.dart';
 import '../../../products/presentation/pages/product_details_page.dart';
 import '../../../auth/presentation/viewmodels/auth_viewmodel.dart';
 import '../../../auth/presentation/pages/login_page.dart';
+import '../../../../data/services/token_storage.dart';
 
 class FavoritesPage extends StatefulWidget {
   const FavoritesPage({super.key});
@@ -21,12 +22,22 @@ class _FavoritesPageState extends State<FavoritesPage> {
   @override
   void initState() {
     super.initState();
+    // Same lifecycle bug found and fixed in AddressesPage: checkAuthStatus()
+    // is async, and gating the data load on _authViewModel.isAuthenticated
+    // right after firing it (without awaiting) reads that flag before the
+    // check has resolved, silently skipping loadFavorites(). Fixed the same
+    // way: gate on a fast, local, network-free token check instead of the
+    // full checkAuthStatus() cycle (which also makes an unrelated network
+    // round trip to GET /api/auth/me to refresh the cached role).
+    // checkAuthStatus() still runs in parallel purely to drive the
+    // login-required UI.
     _authViewModel.checkAuthStatus();
-    _loadFavoritesIfAuthenticated();
+    _loadFavoritesIfTokenPresent();
   }
 
-  Future<void> _loadFavoritesIfAuthenticated() async {
-    if (_authViewModel.isAuthenticated) {
+  Future<void> _loadFavoritesIfTokenPresent() async {
+    final hasToken = await TokenStorage.isAuthenticated();
+    if (hasToken) {
       await _viewModel.loadFavorites();
     }
   }

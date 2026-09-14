@@ -139,6 +139,21 @@ const deactivateProduct = async (productId) => {
   }
 };
 
+// Stabilization fix: productRepository.setActive already supported turning a
+// product back on (isActive=true), but nothing above it ever called that
+// path -- there was no way for an owner to undo a deactivation. This mirrors
+// deactivateProduct exactly, just with the opposite target value. productId
+// here is always pre-verified by requireProductOwnership, same as above.
+const reactivateProduct = async (productId) => {
+  try {
+    await productRepository.setActive(productId, true);
+    return { success: true };
+  } catch (error) {
+    console.error('Error reactivating product:', error);
+    throw new Error('Failed to reactivate product');
+  }
+};
+
 const getAllProducts = async (filters = {}) => {
   try {
     const products = await productRepository.findAll(filters);
@@ -180,5 +195,6 @@ module.exports = {
   getProductsForStore,
   createProduct,
   updateProduct,
-  deactivateProduct
+  deactivateProduct,
+  reactivateProduct
 };

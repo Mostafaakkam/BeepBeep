@@ -176,6 +176,29 @@ class StoreOwnerRepository {
     }
   }
 
+  /// Reactivates a previously-deactivated product already verified
+  /// (server-side) to belong to the caller's store
+  /// (PATCH /api/products/:id/reactivate). Mirror image of
+  /// deactivateProduct above -- stabilization fix, this endpoint previously
+  /// did not exist even though the backend's soft-delete flag always
+  /// supported flipping back to active.
+  Future<void> reactivateProduct(int productId) async {
+    try {
+      final token = await _requireToken();
+      final response = await _apiService.patch(
+        '${ApiConfig.products}/$productId/reactivate',
+        {},
+        token: token,
+      );
+
+      if (response['success'] != true) {
+        throw Exception(response['message'] ?? 'Failed to reactivate product');
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   /// Orders for one store (GET /api/stores/:storeId/orders) -- this endpoint
   /// predates the dashboard feature (Store Ownership work) and is reused
   /// as-is here.

@@ -7,6 +7,7 @@ import 'address_form_page.dart';
 import '../../../../data/models/models.dart';
 import '../../../auth/presentation/viewmodels/auth_viewmodel.dart';
 import '../../../auth/presentation/pages/login_page.dart';
+import '../../../../data/services/token_storage.dart';
 
 class AddressesPage extends StatefulWidget {
   const AddressesPage({super.key});
@@ -22,12 +23,39 @@ class _AddressesPageState extends State<AddressesPage> {
   @override
   void initState() {
     super.initState();
+    // First-round fix (2026-08-30): the original bug was
+    // _authViewModel.checkAuthStatus() being fired without awaiting it, so
+    // _loadAddressesIfAuthenticated() ran immediately and read
+    // _authViewModel.isAuthenticated while it was still false. That was
+    // corrected by awaiting checkAuthStatus() before deciding whether to
+    // load -- confirmed live that GET /api/addresses itself always returns
+    // 200 with the caller's own addresses for the real test account, so the
+    // backend was never at fault.
+    //
+    // Second-round finding: gating the address fetch on the *full*
+    // checkAuthStatus() cycle was still the one remaining structural
+    // difference between this code path and every other one that reliably
+    // works. addAddress()/updateAddress()/deleteAddress()/
+    // setDefaultAddress() all call _viewModel.loadAddresses() directly, with
+    // no dependency on _authViewModel at all -- that is exactly why
+    // addresses correctly reappear after adding a new one. checkAuthStatus()
+    // does not just read the locally cached token; it also awaits a network
+    // round trip to GET /api/auth/me (_refreshRoleFromBackend) purely to
+    // refresh the cached role, which has nothing to do with whether the
+    // address list should be fetched. Making the initial load depend on that
+    // extra network call -- which none of the other, working call sites
+    // depend on -- was an avoidable difference. The fix below removes it:
+    // the address list is now gated on a fast, local, network-free check
+    // (does a token exist in storage at all), exactly matching the trigger
+    // every other working mutation already uses, while checkAuthStatus()
+    // still runs in parallel purely to drive the login-required/role UI.
     _authViewModel.checkAuthStatus();
-    _loadAddressesIfAuthenticated();
+    _loadAddressesIfTokenPresent();
   }
 
-  Future<void> _loadAddressesIfAuthenticated() async {
-    if (_authViewModel.isAuthenticated) {
+  Future<void> _loadAddressesIfTokenPresent() async {
+    final hasToken = await TokenStorage.isAuthenticated();
+    if (hasToken) {
       await _viewModel.loadAddresses();
     }
   }
@@ -279,7 +307,9 @@ class _AddressesPageState extends State<AddressesPage> {
               children: [
                 Expanded(
                   child: Text(
-                    address.label,
+                    address.area != null && address.area!.isNotEmpty
+                        ? '${address.city} - ${address.area}'
+                        : address.city,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: AppColors.darkNavy,
                           fontWeight: FontWeight.bold,
@@ -307,27 +337,15 @@ class _AddressesPageState extends State<AddressesPage> {
                   ),
               ],
             ),
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              address.recipientName,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.darkNavy,
-                  ),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              address.phone,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.gray,
-                  ),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              address.address,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.gray,
-                  ),
-            ),
+            if (address.details != null && address.details!.isNotEmpty) ...[
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                address.details!,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppColors.gray,
+                    ),
+              ),
+            ],
             const SizedBox(height: AppSpacing.md),
             Row(
               children: [

@@ -267,6 +267,26 @@ class _CartPageState extends State<CartPage> {
           Column(
             children: [
               _buildQuantityControls(item),
+              // Stock validation UX: the "+" control above is already
+              // disabled once quantity reaches available stock -- this just
+              // explains why, instead of leaving the disabled button
+              // unexplained. Does not change the disable condition itself.
+              if (item.quantity >= item.variant.stock) ...[
+                const SizedBox(height: AppSpacing.xs),
+                SizedBox(
+                  width: 90,
+                  child: Text(
+                    AppLocalizations.of(context).maxStockReachedMessage,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.gray,
+                          fontSize: 10,
+                        ),
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
               IconButton(
                 icon: const Icon(Icons.delete_outline),
                 color: AppColors.error,
@@ -282,6 +302,7 @@ class _CartPageState extends State<CartPage> {
   }
 
   Widget _buildQuantityControls(CartItem item) {
+    final atStockLimit = item.quantity >= item.variant.stock;
     return Container(
       decoration: BoxDecoration(
         color: AppColors.lightGray,
@@ -320,14 +341,14 @@ class _CartPageState extends State<CartPage> {
           ),
           IconButton(
             icon: const Icon(Icons.add, size: 16),
-            onPressed: _viewModel.isOperationInProgress
+            // Stock validation: once the cart already holds the available
+            // stock for this variant, the "+" control is disabled so the
+            // customer can never select a quantity above it from this UI.
+            // The backend (cartService.updateItemQuantity) still enforces
+            // the same limit server-side regardless of this UI state.
+            onPressed: _viewModel.isOperationInProgress || atStockLimit
                 ? null
-                : () {
-                    _viewModel.updateItemQuantity(
-                      cartItemId: item.id,
-                      quantity: item.quantity + 1,
-                    );
-                  },
+                : () => _handleIncreaseQuantity(item),
             padding: const EdgeInsets.all(4),
             constraints: const BoxConstraints(
               minWidth: 32,
@@ -337,6 +358,25 @@ class _CartPageState extends State<CartPage> {
         ],
       ),
     );
+  }
+
+  Future<void> _handleIncreaseQuantity(CartItem item) async {
+    try {
+      await _viewModel.updateItemQuantity(
+        cartItemId: item.id,
+        quantity: item.quantity + 1,
+      );
+    } on InsufficientStockException {
+      if (mounted) {
+        final l10n = AppLocalizations.of(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(l10n.insufficientStockMessage),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildCartSummary() {

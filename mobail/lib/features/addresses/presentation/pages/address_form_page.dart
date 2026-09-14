@@ -18,10 +18,9 @@ class AddressFormPage extends StatefulWidget {
 
 class _AddressFormPageState extends State<AddressFormPage> {
   final _formKey = GlobalKey<FormState>();
-  final _labelController = TextEditingController();
-  final _recipientNameController = TextEditingController();
-  final _phoneController = TextEditingController();
-  final _addressController = TextEditingController();
+  final _cityController = TextEditingController();
+  final _areaController = TextEditingController();
+  final _detailsController = TextEditingController();
   bool _isDefault = false;
   bool _isSaving = false;
 
@@ -29,20 +28,18 @@ class _AddressFormPageState extends State<AddressFormPage> {
   void initState() {
     super.initState();
     if (widget.address != null) {
-      _labelController.text = widget.address!.label;
-      _recipientNameController.text = widget.address!.recipientName;
-      _phoneController.text = widget.address!.phone;
-      _addressController.text = widget.address!.address;
+      _cityController.text = widget.address!.city;
+      _areaController.text = widget.address!.area ?? '';
+      _detailsController.text = widget.address!.details ?? '';
       _isDefault = widget.address!.isDefault;
     }
   }
 
   @override
   void dispose() {
-    _labelController.dispose();
-    _recipientNameController.dispose();
-    _phoneController.dispose();
-    _addressController.dispose();
+    _cityController.dispose();
+    _areaController.dispose();
+    _detailsController.dispose();
     super.dispose();
   }
 
@@ -51,13 +48,10 @@ class _AddressFormPageState extends State<AddressFormPage> {
       final address = AddressModel(
         id: widget.address?.id ?? 0,
         userId: widget.address?.userId ?? 0,
-        label: _labelController.text.trim(),
-        recipientName: _recipientNameController.text.trim(),
-        phone: _phoneController.text.trim(),
-        address: _addressController.text.trim(),
+        city: _cityController.text.trim(),
+        area: _areaController.text.trim().isEmpty ? null : _areaController.text.trim(),
+        details: _detailsController.text.trim(),
         isDefault: _isDefault,
-        createdAt: widget.address?.createdAt ?? DateTime.now(),
-        updatedAt: DateTime.now(),
       );
 
       setState(() {
@@ -134,62 +128,41 @@ class _AddressFormPageState extends State<AddressFormPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             TextFormField(
-              controller: _labelController,
+              controller: _cityController,
               decoration: InputDecoration(
-                labelText: l10n.addressLabel,
-                hintText: l10n.labelHint,
+                labelText: l10n.city,
+                hintText: l10n.cityHint,
                 border: const OutlineInputBorder(),
               ),
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
-                  return l10n.labelRequired;
+                  return l10n.cityRequired;
                 }
                 return null;
               },
             ),
             const SizedBox(height: AppSpacing.md),
             TextFormField(
-              controller: _recipientNameController,
+              controller: _areaController,
               decoration: InputDecoration(
-                labelText: l10n.recipientName,
-                hintText: l10n.recipientNameHint,
+                labelText: l10n.area,
+                hintText: l10n.areaHint,
                 border: const OutlineInputBorder(),
               ),
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return l10n.recipientNameRequired;
-                }
-                return null;
-              },
+              // Area is optional (nullable on the live schema) -- no validator.
             ),
             const SizedBox(height: AppSpacing.md),
             TextFormField(
-              controller: _phoneController,
+              controller: _detailsController,
               decoration: InputDecoration(
-                labelText: l10n.phone,
-                hintText: l10n.phoneHintGeneric,
-                border: const OutlineInputBorder(),
-              ),
-              keyboardType: TextInputType.phone,
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return l10n.phoneRequired;
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: AppSpacing.md),
-            TextFormField(
-              controller: _addressController,
-              decoration: InputDecoration(
-                labelText: l10n.deliveryAddress,
-                hintText: l10n.deliveryAddressHint,
+                labelText: l10n.addressDetails,
+                hintText: l10n.addressDetailsHint,
                 border: const OutlineInputBorder(),
               ),
               maxLines: 3,
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
-                  return l10n.addressRequired;
+                  return l10n.addressDetailsRequired;
                 }
                 return null;
               },

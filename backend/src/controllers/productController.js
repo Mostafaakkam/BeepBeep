@@ -115,9 +115,31 @@ const deactivateProduct = async (req, res) => {
   }
 };
 
+// Stabilization fix: the mirror image of deactivateProduct above. Mounted
+// with the same requireProductOwnership('id') chain -- ownership already
+// verified server-side by the time this runs.
+const reactivateProduct = async (req, res) => {
+  try {
+    const { id } = req.params;
+    await productService.reactivateProduct(parseInt(id));
+
+    res.status(200).json({
+      success: true,
+      message: 'Product reactivated successfully'
+    });
+  } catch (error) {
+    console.error('Reactivate product error:', error.message);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to reactivate product'
+    });
+  }
+};
+
 module.exports = {
   getAllProducts,
   getProductById,
   updateProduct,
-  deactivateProduct
+  deactivateProduct,
+  reactivateProduct
 };

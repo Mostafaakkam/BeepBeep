@@ -15,9 +15,24 @@ const getCart = async (userId) => {
     
     let subtotal = 0;
     const processedItems = cart.items.map(item => {
-      const itemSubtotal = item.quantity * item.price;
+      // Same root cause as the earlier Product Details fix: cart_items.price
+      // and product_variants.price are DECIMAL columns, which mysql2 returns
+      // as JS strings (no decimalNumbers: true on the pool -- see
+      // config/database.js). `item.quantity * item.price` below happened to
+      // look fine because JS's `*` operator coerces a numeric string, so
+      // itemSubtotal/subtotal/total were always real numbers -- but
+      // unit_price and variant.price were passed straight through as the
+      // raw string, and Flutter's CartItem.fromJson/ProductVariant.fromJson
+      // both do `(json[...] as num).toDouble()`, which throws on a String.
+      // That is the actual, confirmed (live-tested) cause of the Cart page's
+      // generic error screen. Normalizing both values here, at the one place
+      // they enter the cart response, fixes it at the exact point of failure
+      // without touching the DB schema.
+      const price = parseFloat(item.price);
+      const variantPrice = parseFloat(item.variant_price);
+      const itemSubtotal = item.quantity * price;
       subtotal += itemSubtotal;
-      
+
       return {
         id: item.id,
         product: {
@@ -32,11 +47,11 @@ const getCart = async (userId) => {
           id: item.variant_id,
           color: item.color,
           size: item.size,
-          price: item.variant_price,
+          price: variantPrice,
           stock: item.stock
         },
         quantity: item.quantity,
-        unit_price: item.price,
+        unit_price: price,
         subtotal: itemSubtotal
       };
     });
@@ -85,13 +100,17 @@ const addItem = async (userId, productId, variantId, quantity) => {
       throw error;
     }
     
-    // Check stock availability
-    if (variant.stock < quantity) {
+    // Check stock availability. If this variant is already in the cart, the
+    // existing quantity and the newly requested quantity must together fit
+    // within current_stock -- checking only the requested quantity in
+    // isolation would let repeated adds of the same variant exceed stock.
+    const existingQuantity = await cartRepository.getExistingQuantityForVariant(userId, variantId);
+    if (existingQuantity + quantity > variant.stock) {
       const error = new Error('Insufficient stock');
       error.code = 'INSUFFICIENT_STOCK';
       throw error;
     }
-    
+
     // Get or create user's cart
     const cart = await cartRepository.findOrCreateCart(userId);
 
@@ -205,13 +224,28 @@ const updateItemQuantity = async (userId, cartItemId, quantity) => {
       error.code = 'INVALID_INPUT';
       throw error;
     }
-    
+
     if (quantity < 0) {
       const error = new Error('Quantity cannot be negative');
       error.code = 'INVALID_QUANTITY';
       throw error;
     }
-    
+
+    // Stock validation: the cart page's "+" control goes through this path
+    // (not addItem), so it needs the same enforcement -- a quantity of 0 is
+    // a removal (handled by the repository) and never exceeds stock.
+    if (quantity > 0) {
+      const item = await cartRepository.getItemWithStock(cartItemId, userId);
+      if (!item) {
+        throw new Error('Cart item not found or access denied');
+      }
+      if (quantity > item.stock) {
+        const error = new Error('Insufficient stock');
+        error.code = 'INSUFFICIENT_STOCK';
+        throw error;
+      }
+    }
+
     await cartRepository.updateItemQuantity(cartItemId, userId, quantity);
   } catch (error) {
     console.error('Error updating cart item:', error);

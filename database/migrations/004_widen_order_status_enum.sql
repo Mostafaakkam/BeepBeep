@@ -1,0 +1,48 @@
+-- Migration: Widen orders.status enum to match the application's order
+-- fulfillment state machine
+-- Feature: Store Owner Dashboard (Order Management) -- stabilization fix
+-- Date: 2026-08-30
+--
+-- Run this manually against the `beep_beep` MySQL database, after
+-- 003_add_product_is_active.sql (this project has no automated migration
+-- runner; see docs/database.md and prior migration files for the same
+-- convention).
+--
+-- CONFIRMED ROOT CAUSE (verified directly against the live database via
+-- phpMyAdmin during this stabilization audit, not assumed from docs):
+--   Live column:  orders.status = enum('pending','confirmed','shipping',
+--                 'delivered','cancelled')
+--   Application:  backend/src/services/orderService.js's VALID_TRANSITIONS
+--                 (the single source of truth for the order fulfillment
+--                 flow, already implemented for the Store Owner Dashboard)
+--                 uses the status vocabulary
+--                 pending -> confirmed -> preparing -> shipped -> delivered,
+--                 plus a separate terminal 'cancelled'.
+--   Impact:       'preparing' and 'shipped' do not exist in the live enum.
+--                 MariaDB 10.4 runs in strict mode by default, so any
+--                 attempt to UPDATE orders SET status = 'preparing' (or
+--                 'shipped') is REJECTED outright -- not silently coerced.
+--                 In practice this means a store owner can move an order
+--                 from pending to confirmed and no further: every dashboard
+--                 order-status update past 'confirmed' fails. This is a
+--                 hard blocker on the order fulfillment flow, not a
+--                 cosmetic mismatch.
+--
+-- Design notes:
+--   * Purely additive: only adds new enum members, and only widens
+--     (MODIFY), never narrows. No existing column is renamed or dropped.
+--   * 'shipping' and the existing member order are intentionally KEPT
+--     (not replaced/renamed to 'shipped') even though the application
+--     never writes it, purely for backward compatibility -- if any row
+--     anywhere already has status = 'shipping' (there are none in the
+--     current seed data, verified via phpMyAdmin: `orders` has 0 rows at
+--     the time of this migration), widening rather than renaming means
+--     this migration can never fail or silently corrupt an existing value.
+--   * No default value change: 'pending' remains the default, matching
+--     every prior migration and the application's own order-creation flow.
+--   * No FK/index touches this column; no other table references
+--     orders.status.
+ALTER TABLE orders
+  MODIFY COLUMN status
+    ENUM('pending','confirmed','preparing','shipping','shipped','delivered','cancelled')
+    NOT NULL DEFAULT 'pending';
