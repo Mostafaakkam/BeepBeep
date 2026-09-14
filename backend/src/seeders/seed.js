@@ -120,6 +120,13 @@ const usersData = [
   { key: 'mohammad', name: 'محمد العلي', phone: '00963991234569', email: 'mohammad.ali@example.com' },
   { key: 'layla', name: 'ليلى إبراهيم', phone: '00963991234570', email: 'layla.ibrahim@example.com' },
   { key: 'omar', name: 'عمر الخطيب', phone: '00963991234571', email: 'omar.khatib@example.com' },
+  // Admin Dashboard (backend foundation slice): one clearly fake/demo admin
+  // account, seeded the exact same way as the two store_owner demo accounts
+  // above -- there is no other way to reach role='admin' (register.js always
+  // hardcodes role: 'customer', and no admin-promotion endpoint exists yet),
+  // so this is the only way to exercise requireRole('admin') end-to-end
+  // against a real account until Admin Users management is built.
+  { key: 'admin', name: 'مدير النظام (حساب تجريبي)', phone: '00963991234572', email: 'admin.demo@example.com', role: 'admin' },
 ];
 
 // `ownerKey` (new, Store Ownership feature) references a `key` from
@@ -545,10 +552,20 @@ async function seed() {
     console.log('');
 
     // -------------------------------------------------------------------
-    // 6) العناوين (عنوان واحد افتراضي لكل مستخدم)
+    // 6) العناوين (عنوان واحد افتراضي لكل مستخدم له إدخال في addressesData)
     // -------------------------------------------------------------------
+    // Admin Dashboard (backend foundation slice): bounded by
+    // addressesData.length, not userIds.length -- addressesData is
+    // positionally paired with the first N entries of usersData (one
+    // delivery address per customer/store_owner demo account) and was never
+    // meant to cover every seeded user. The new admin demo account
+    // (appended at the end of usersData) has no corresponding entry here on
+    // purpose: an admin account has no delivery-address use case, unlike
+    // the customer/store_owner accounts. Without this bound, adding the
+    // admin account made this loop read addressesData[5], which doesn't
+    // exist, and crash the whole seed run.
     console.log('📍 [6/9] إضافة العناوين...');
-    for (let i = 0; i < userIds.length; i++) {
+    for (let i = 0; i < Math.min(userIds.length, addressesData.length); i++) {
       const now = new Date();
       const u = usersData[i];
       const a = addressesData[i];
@@ -564,7 +581,7 @@ async function seed() {
       });
       console.log(`   ✅ عنوان لـ ${u.name} (id=${id})`);
     }
-    console.log(`   ✔️  تم إضافة ${userIds.length} عناوين.`);
+    console.log(`   ✔️  تم إضافة ${Math.min(userIds.length, addressesData.length)} عناوين.`);
     console.log('');
 
     // -------------------------------------------------------------------
@@ -661,7 +678,7 @@ async function seed() {
     console.log(`   📦 منتجات:          ${productRecords.length}`);
     console.log(`   🖼️  صور منتجات:      ${totalImages}`);
     console.log(`   🎨 متغيرات منتجات:  ${totalVariants}`);
-    console.log(`   📍 عناوين:          ${userIds.length}`);
+    console.log(`   📍 عناوين:          ${Math.min(userIds.length, addressesData.length)}`);
     console.log(`   ❤️  عناصر مفضلة:     ${favoritesCount}`);
     console.log(`   🛒 سلال تسوق:       ${cartsPlan.length} (${cartItemsCount} عنصراً)`);
     console.log('============================================================');

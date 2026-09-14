@@ -73,13 +73,16 @@
 - Flutter review submission/edit UI, rating summary, and review list on Product Details
 
 **Not Yet Implemented:**
-- Order management dashboard for store owners
+*(Corrected 2026-09-14 — this list was stale: Store Owner Dashboard, including order management and store list/switch for store owners, has been implemented and verified live since. See "Store Owner Dashboard Implementation" and the 2026-09-14 verification section near the end of this document.)*
 - Admin dashboard
+- Store creation flow for store owners (the dashboard is list/switch/manage-existing-stores only)
+- Product image upload (URL-based only)
 - Advanced delivery pricing
 - Payment gateway integration (Stripe, PayPal, etc.)
-- User profile management beyond logout and addresses
-- Store management for store owners
-- Any business features beyond authentication, Home, Stores, Products, Cart, Orders, Search, Favorites, Addresses, and Categories
+- User profile management beyond logout, language, and addresses (no edit name/phone/email, no password change)
+- Product recommendations, coupons/discounts, notifications, delivery driver integration, multi-city expansion
+- Category parent-child hierarchy (flat list only)
+- Automated test suite, automated migration runner
 
 ## Technology Stack
 
@@ -468,7 +471,12 @@
 - `mobail/lib/data/services/token_storage.dart` (reused)
 - `mobail/lib/main.dart` (updated to start with SplashPage)
 
-## Current Project Status
+## Current Project Status *(historical snapshot — as of Splash Screen Implementation, very early in the project; see "Preserve History" below)*
+
+**⚠️ Corrected 2026-09-14: every "❌ Not started" row below except Admin Features is now wrong.** This block is a point-in-time snapshot from immediately after the Splash Screen was built, before Home/Stores/Products/Cart/Orders/Search/Favorites/Addresses/Categories/Reviews/Store Owner Dashboard existed. It is kept verbatim below per this document's own "preserve history" convention (see "Development Methodology" / "Maintenance") rather than deleted — **do not treat it as current**. For the actual, up-to-date status, see:
+- `development_status.md` (concise, current, authoritative — updated 2026-09-14)
+- The final "Current Project Status" block near the end of this document (after "Store Owner Dashboard Implementation" / the 2026-09-14 verification section), which supersedes this one
+- `docs/project_context.md` §12
 
 ### Backend
 - **Infrastructure:** ✅ Completed
@@ -494,14 +502,12 @@
 - **API Service Layer:** ✅ Completed
 - **State Management:** ✅ Completed (ChangeNotifier pattern)
 - **JWT Token Storage:** ✅ Completed (SharedPreferences)
-- **Localization (English/Arabic):** ✅ Implemented across all screens (see "Localization Implementation" section below); statically verified, on-device `flutter analyze`/build not run this session
-
-Note: the "Home Screen" through "Profile Screen" rows above predate this update and are stale — those screens are in fact implemented (see `docs/project_context.md` §12 for current status). This section is left otherwise unchanged per task scope; only the Localization row was added.
+- **Localization (English/Arabic):** ✅ Implemented across all screens (see "Localization Implementation" section below)
 
 ### Database
 - **Initial Schema:** ✅ Completed
-- **Migration System:** ❌ Not implemented
-- **Seed Data:** ❌ Not implemented
+- **Migration System:** ❌ Not implemented *(still accurate as of 2026-09-14 — no automated runner exists; five manual migrations now exist and are all applied, see the 2026-09-14 section near the end of this document)*
+- **Seed Data:** ❌ Not implemented *(stale — `backend/src/seeders/seed.js` has existed and been used since well before this snapshot's actual date; see `development_status.md`)*
 
 ### Security
 - **Password Hashing:** ✅ Completed (bcrypt)
@@ -1211,6 +1217,8 @@ Note: the "Home Screen" through "Profile Screen" rows above predate this update 
 - Existing favorites table structure was already suitable
 
 ## Address Implementation
+
+**⚠️ Correction (2026-08-30 stabilization audit, confirmed still accurate 2026-09-14):** the schema and field names described throughout this section (`label`, `recipient_name`, `phone`, `address`) were never actually applied to the live database — the live `addresses` table only ever had `(id, user_id, city, area, details, is_default)`. This caused every address endpoint to fail against the real database. `AddressModel` and the address UI (including the Checkout address selector) were rewritten to use `city`/`area`/`details`/`is_default` instead. The narrative below is kept as historical record of the original design intent (per this document's "preserve history" convention); treat `docs/database.md`'s `addresses` table entry and `mobail/lib/data/models/address_model.dart` as the source of truth for the actual columns.
 
 **Backend Architecture:**
 - Layered architecture: Repository → Service → Controller → Routes
@@ -2212,18 +2220,56 @@ A third pre-existing bug was also found and fixed as a direct blocker to testing
 - `mobail/lib/l10n/generated/app_localizations.dart`, `app_localizations_en.dart`, `app_localizations_ar.dart` — hand-patched with the 44 new keys plus the 20 previously-missing Reviews keys (see Localization Gap note above)
 - `docs/project_context.md`, `docs/AI_PROJECT_BRIEF.md`, `development_status.md` — documentation updates
 
-**Current Project Status:**
+**Current Project Status (as of Store Owner Dashboard completion):**
 - Core marketplace features, Authentication, Products (with filtering), Cart, Orders, Search, Favorites, Addresses, Categories, Localization, Product Reviews & Ratings, Role System/Store Ownership backend: ✅ Completed
 - Store Owner Dashboard — Backend: ✅ Completed, verified end-to-end (47/47 regression + 54/54 new checks) against a real (sandbox) MariaDB instance
 - Store Owner Dashboard — Flutter: ✅ Implemented, statically verified only (see Testing above)
 - Orders can now reach `delivered` through the app itself (previously only via direct SQL) — resolves the gap noted in "Immediate Next Step" above and in the Reviews feature's Purchase-Eligibility Design Decision
-- **2026-08-30 Stabilization Audit:** live database verified directly (migrations 001–003 confirmed applied, seed data consistent). Found and fixed a critical live-DB-only bug: `orders.status`'s enum never actually had `preparing`/`shipped` added, silently blocking all store-owner order fulfillment past `confirmed` (migration `004_widen_order_status_enum.sql` written and verified; **still needs to be run against the live database**). Found and closed a confirmed gap: product reactivation (`is_active: 0 → 1`) now implemented end-to-end — see `productService.reactivateProduct` and `PATCH /api/products/:id/reactivate` above.
-- **Still not implemented:** Admin Dashboard, store-creation UI/endpoint, product image upload, payment gateway integration
+- **2026-08-30 Stabilization Audit:** live database verified directly (migrations 001–003 confirmed applied, seed data consistent). Found and fixed a critical live-DB-only bug: `orders.status`'s enum never actually had `preparing`/`shipped` added, silently blocking all store-owner order fulfillment past `confirmed` (migration `004_widen_order_status_enum.sql`). Found and closed a confirmed gap: product reactivation (`is_active: 0 → 1`) now implemented end-to-end — see `productService.reactivateProduct` and `PATCH /api/products/:id/reactivate` above. Same session: found the live `orders`/`order_items`/`cart_items`/`product_images`/`product_variants` tables were still missing several columns the application code had been written against (checkout, order history, and add-to-cart were failing with 500s against the real database) — written up as `database/migrations/005_align_orders_cart_schema.sql`; also found and fixed the live `addresses` table's real shape (see the correction note in "Address Implementation" above).
+- **Superseded by the 2026-09-14 verification section immediately below** — see that section for current, live-tested status. **Still not implemented (confirmed current as of 2026-09-14):** Admin Dashboard, store-creation UI/endpoint, product image upload, user profile editing, payment gateway integration, product recommendations, coupons, notifications, delivery-driver integration, multi-city support.
+
+## Customer & Store Owner Flow Verification (2026-09-14)
+
+**Goal:** Re-verify the entire customer flow and the entire Store Owner Dashboard flow against the real running backend and the real live `beep_beep` database (not a sandbox), following up on the 2026-08-30 stabilization audit — confirm migrations 004/005 are actually applied, confirm the order lifecycle genuinely works end-to-end through the real app-facing API, and find/fix anything still broken.
+
+**Confirmed applied (live database, not assumed):** migrations 004 and 005 are both present on the live schema.
+
+**Bugs found and fixed (all confirmed via live API testing, not code inspection alone):**
+1. **Checkout address-selector overflow** — `checkout_page.dart`'s `DropdownButtonFormField` rendered a two-line (city + details) widget as its closed-field display, which doesn't size to multi-line content, producing a `RenderFlex` overflow when a saved address was selected. Fixed with `selectedItemBuilder` (single-line closed display); the open dropdown menu's own two-line item layout is unchanged.
+2. **Cart stock-accumulation gap** — `cartService.addItem` only checked the newly-requested quantity against stock, not `existing_cart_quantity + requested_quantity`; and `cartService.updateItemQuantity` (the cart page's "+"/"-" control, `PATCH /api/cart/items/:id`) had **no stock check at all**. Both now enforce `quantity <= stock` server-side (400 `INSUFFICIENT_STOCK`); the Flutter cart page disables "+" once the limit is reached and shows a localized message explaining why.
+3. **Orders DECIMAL-as-string bug** — `orders.subtotal/delivery_fee/total` and `order_items.unit_price/subtotal` are `DECIMAL` columns; `mysql2` returns them as JS strings (no `decimalNumbers: true` on the pool). Flutter's `Order.fromJson`/`OrderItem.fromJson` do `(json[...] as num)`, which throws on a string — confirmed live as the exact cause of "My Orders" showing a generic error screen right after a successful checkout. Fixed by normalizing in `orderRepository.js`, across all four order-reading functions (`findByUserId`, `findById`, and the store-owner-scoped `findByStoreId`/`findByIdForStore`, which share the same Flutter `Order` model and had the identical bug).
+4. **Store-owner product variant price DECIMAL-as-string bug** — the same class of bug, independently present in `productRepository.findByStoreIdForOwner` (`GET /api/stores/:storeId/products`, the Store Owner Products tab). The customer-facing `findById` already normalized this; the owner-facing list had not. Fixed the same way.
+
+**Testing performed (live, against the real backend/database):**
+- Full customer flow: Products → Favorites → Addresses → Cart (including stock-limit edge cases) → Checkout → Orders → Order Details → cancellation.
+- Full store-owner flow: dashboard stats → store products → product update → store orders → order detail → status transitions.
+- Authorization matrix: unauthenticated (401), authenticated customer (403 on store-owner endpoints), correct store owner (200, mutation persists), wrong store owner (403, mutation does not apply) — on `GET`/`PATCH` store-order and `PUT` product-update endpoints.
+- Full order lifecycle end-to-end: a real order walked through `pending → confirmed → preparing → shipped → delivered` via the real `PATCH /api/stores/:storeId/orders/:orderId/status` endpoint, with every invalid transition probed and rejected (skip-ahead, backward, store-owner setting `cancelled`, the legacy `shipping` value), and status/numeric-field consistency verified across all four read surfaces (customer My Orders, customer Order Details, store owner order list, store owner order detail) after each step.
+- `flutter pub get` and `flutter analyze` — both passed; `analyze` reported only pre-existing issues (unused imports/local variable in `store_owner_*` pages, a few `use_build_context_synchronously` infos, minor lint notes in generated l10n files), none newly introduced.
+- **Not performed:** Flutter UI/device runtime testing — no emulator or physical device was available this session. Every Flutter-side conclusion above is static analysis plus reasoning from live backend responses against the Dart model code, not an actually-running app.
+- **Not verified:** the `admin`-role bypass in the authorization middleware — no admin account exists in seed data. Confirmed only by code inspection.
+
+**Files modified:** `backend/src/repositories/orderRepository.js`, `backend/src/repositories/productRepository.js`, `backend/src/repositories/cartRepository.js`, `backend/src/services/cartService.js`, `backend/src/controllers/cartController.js`, `mobail/lib/features/orders/presentation/pages/checkout_page.dart`, `mobail/lib/features/cart/presentation/pages/cart_page.dart`, `mobail/lib/features/cart/presentation/viewmodels/cart_viewmodel.dart`, `mobail/lib/features/products/presentation/pages/product_details_page.dart`, `mobail/lib/l10n/app_en.arb`, `mobail/lib/l10n/app_ar.arb` (+ generated l10n files).
+
+**Order lifecycle, restated precisely (do not document `shipping` as an application state):**
+```
+pending → confirmed → preparing → shipped → delivered
+```
+One step at a time, no skipping, no going backward, enforced by `orderService.VALID_TRANSITIONS`. The live DB enum still contains a legacy `shipping` value for backward compatibility only — no application code reads or writes it (confirmed by both grep and live testing: setting `status: "shipping"` via the API is rejected with `400 INVALID_STATUS`, same as any other invalid value).
+
+**Git status:** all of the above is committed and pushed. Current `master`: `34b5d7b "Complete customer and store owner flows"` (on top of `d847bfa feat: complete store owner dashboard and role system`). Working tree clean.
+
+**Current Project Status (supersedes every block above):**
+- Fully completed: entire customer flow, entire Store Owner Dashboard flow (backend + Flutter, both live-tested — see Testing above)
+- Known gaps in otherwise-completed features: store creation flow, product image upload, user profile editing beyond logout/language/addresses, category parent-child hierarchy
+- Not started: Admin Dashboard (next planned feature), payment gateways, product recommendations, coupons, notifications, delivery-driver integration, multi-city support, refresh tokens/password reset/verification/MFA, automated test suite, automated migration runner
+
+**Next Planned Feature: Admin Dashboard.** Not implemented as part of this verification/documentation pass. The `admin`-role bypass already exists and is tested in `requireRole`/`requireStoreOwnership`/`requireProductOwnership` — an admin dashboard is largely new routes/controllers/Flutter screens layered on authorization plumbing that already exists.
 
 ---
 
 **Document Purpose:** This AI_PROJECT_BRIEF.md provides portable high-level context for any AI assistant or new coding session to understand the Beep Beep project without scanning the entire repository.
 
-**Maintenance:** This document should be updated after major architectural changes or when the overall project direction shifts significantly. For detailed feature-specific context, refer to docs/project_context.md.
+**Maintenance:** This document should be updated after major architectural changes or when the overall project direction shifts significantly. For detailed feature-specific context, refer to docs/project_context.md. For a concise, current status summary, refer to `development_status.md`.
 
-**Last Updated:** 2026-08-30 (Stabilization audit: live database verified, orders.status enum gap found/fixed via migration 004, product reactivation gap closed)
+**Last Updated:** 2026-09-14 (Customer + Store Owner flow verification: migrations 004–005 confirmed applied live, full order lifecycle tested end-to-end, checkout overflow / cart stock-validation / orders DECIMAL / store-owner product price DECIMAL bugs found and fixed, several stale status sections corrected in place, work committed and pushed)

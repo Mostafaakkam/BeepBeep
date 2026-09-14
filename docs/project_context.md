@@ -75,19 +75,24 @@ Beep Beep is a mobile marketplace application designed for local commerce, start
 - Product Reviews & Ratings API with purchase-verified eligibility and ownership enforcement
 - Flutter review submission/edit UI with rating summary and review list on Product Details
 - Product average rating and review count computed on read and exposed on Product Details
-- Store Owner Dashboard: role-gated Flutter dashboard (list/switch owned stores, add/edit/deactivate products, view and progress orders through their valid status transitions) integrated into the existing app, backed by new/extended backend endpoints reusing the existing role/ownership authorization middleware
+- Store Owner Dashboard: role-gated Flutter dashboard (list/switch owned stores, add/edit/deactivate/reactivate products, view dashboard statistics, view and progress orders through their valid status transitions) integrated into the existing app, backed by new/extended backend endpoints reusing the existing role/ownership authorization middleware
+- Server-side cart stock enforcement on both the add-to-cart and quantity-update paths (`existing_cart_quantity + requested_quantity <= stock`), with matching Flutter UI (disabled "+" control once the limit is reached, localized explanatory message)
+- **Correction (2026-09-14):** the two sections immediately below ("Explicitly NOT Implemented Yet" in particular) were a stale snapshot from before Home/Stores/Products/Cart/Orders/Profile/Categories/Search/Favorites/Addresses were built — every item they listed as unimplemented has in fact been implemented and verified live (see §12 and `development_status.md`). Left as historical record per this document's own "preserve history" rule rather than deleted; do not read them as current.
 
 ### Planned (Not Yet Implemented)
 - Admin dashboard
 - Store creation flow (an owner cannot create a new store through the app yet — Store Owner Dashboard v1 is list/switch/manage only)
 - Product image upload (product images are URL-based only; no file upload UI)
-- Advanced delivery pricing
+- User profile management beyond logout, language, and addresses (no edit name/phone/email, no password change)
+- Product recommendations
+- Coupons/discounts, notifications, delivery driver integration
 - Payment gateway integration (Stripe, PayPal, etc.)
-- User profile management beyond logout and addresses
-- Delivery driver integration
 - Multi-city expansion
+- Refresh tokens, password reset, email/phone verification, account lockout, MFA
+- Category parent-child hierarchy (the `categories` table has no `parent_id`; browsing is a flat list)
+- Automated test suite (backend or Flutter) and a database migration runner
 
-### Explicitly NOT Implemented Yet
+### Explicitly NOT Implemented Yet *(historical snapshot — see correction note above; stale, kept for history only)*
 - Product display screens
 - Cart functionality
 - Order management
@@ -235,15 +240,18 @@ The Flutter app follows MVVM architecture:
 - Index: `idx_products_is_active`
 - Status: In use
 
-**product_images**
+**product_images** *(image_path/is_primary added — `database/migrations/005_align_orders_cart_schema.sql`)*
 - Purpose: Store product image paths
+- Columns: id, product_id, `image_path`, `is_primary`, created_at
+- `image_path`/`is_primary` were added by migration 005 and backfilled from the live table's older `image_url`/`is_main` columns, to match what the application code had already been written against
 - Relationships: Belongs to one product
-- Status: Schema defined, not yet used
+- Status: In use
 
-**product_variants**
+**product_variants** *(updated_at added — migration 005)*
 - Purpose: Store product variations (color, size, price, stock)
+- Columns: id, product_id, color, size, price, stock, created_at, `updated_at`
 - Relationships: Belongs to one product
-- Status: Schema defined, not yet used
+- Status: In use
 
 **carts** *(store_id added — Single-Store Cart Rule)*
 - Purpose: Store user shopping carts
@@ -253,36 +261,43 @@ The Flutter app follows MVVM architecture:
 - Relationships: Belongs to one user, contains many cart items; tied to **exactly one** store at a time (Single-Store Cart Rule)
 - Status: In use
 
-**cart_items**
+**cart_items** *(price/created_at/updated_at added — migration 005)*
 - Purpose: Store products in shopping cart
+- Columns: id, cart_id, variant_id, quantity, `price`, `created_at`, `updated_at`
+- `price` is a snapshot of the variant's price at add-time, backfilled by migration 005 for any pre-existing rows from `product_variants.price`
 - Relationships: Belongs to one cart, one product variant
 - Status: In use
 
-**orders** *(store_id added — Single-Store Order Rule)*
-- Columns: id, user_id, `store_id` (nullable), status, total_price, created_at, updated_at
+**orders** *(store_id added — migration 002; customer_name/customer_phone/delivery_address/subtotal/delivery_fee/total/payment_method/payment_status/updated_at added — migration 005)*
+- Columns: id, user_id, `store_id` (nullable), `customer_name`, `customer_phone`, `delivery_address`, status, `subtotal`, `delivery_fee`, `total`, `payment_method`, `payment_status`, created_at, `updated_at` (plus legacy `address`/`total_price`, relaxed to nullable by migration 005, no longer written to)
 - Primary Key: id
-- Foreign Keys: user_id, `store_id` → `stores(id)` (nullable — `NULL` on legacy orders created before this migration; new orders always get it populated, see below)
+- Foreign Keys: user_id, `store_id` → `stores(id)` (nullable — `NULL` on legacy orders created before migration 002; new orders always get it populated)
 - `store_id` is derived and validated **server-side only**, from the cart's actual items at the moment of checkout — it is never accepted from the client. A cart that somehow contains items from more than one store (bypassing the cart-level `STORE_MISMATCH` check) is rejected at checkout with `MULTI_STORE_CART` instead of being allowed through.
 - Index: `idx_orders_store_id`
-- Status values: `pending`, `confirmed`, `preparing`, `shipped`, `delivered`, `cancelled`. **Correction (2026-08-30 stabilization audit):** this column IS a real MySQL/MariaDB `ENUM` constraint (the previous claim on this line that there was "no DB ENUM/CHECK constraint" was never actually verified against the live database and was wrong). The live database's enum was found to still be `enum('pending','confirmed','shipping','delivered','cancelled')` — missing `preparing`/`shipped` entirely, which `orderService.VALID_TRANSITIONS` (the application's single source of truth) requires. Any status update past `confirmed` would be rejected outright by the database. Fixed via `database/migrations/004_widen_order_status_enum.sql`, which widens the enum to `enum('pending','confirmed','preparing','shipping','shipped','delivered','cancelled')` (keeps the unused legacy `shipping` value for backward compatibility rather than removing it). **This migration must be applied to the live database by hand before store-owner order fulfillment past "confirmed" will work.**
-- Status transitions: `pending → confirmed → preparing → shipped → delivered`, one step at a time, no skipping, no going backward — enforced by `orderService.VALID_TRANSITIONS` (Store Owner Dashboard, `PATCH /api/stores/:storeId/orders/:orderId/status`, see §6). `pending → cancelled` remains exclusively on the pre-existing customer-only `PATCH /api/orders/:id/cancel` endpoint; a store owner can never set `cancelled`.
+- **Application order lifecycle — exactly five states, one step at a time, no skipping, no going backward:** `pending → confirmed → preparing → shipped → delivered`, plus a separate terminal `cancelled` (customer-only, from `pending` only). Enforced by `orderService.VALID_TRANSITIONS` (the single source of truth; Store Owner Dashboard, `PATCH /api/stores/:storeId/orders/:orderId/status`, see §6). `pending → cancelled` remains exclusively on the pre-existing customer-only `PATCH /api/orders/:id/cancel` endpoint; a store owner can never set `cancelled`.
+- The live database column is a MySQL `ENUM` that also still contains a legacy `shipping` value (`enum('pending','confirmed','preparing','shipping','shipped','delivered','cancelled')`, widened by `database/migrations/004_widen_order_status_enum.sql` from an even older enum that was missing `preparing`/`shipped` entirely — see the Stabilization Audit milestone below for how that gap was found). **`shipping` is not an application state** — no code path reads or writes it; it is kept only for backward compatibility. Do not document or implement against it.
+- **Status (2026-09-14):** migrations 004 and 005 are both confirmed applied to the live database, and the full `pending → confirmed → preparing → shipped → delivered` lifecycle has been exercised end-to-end against the real backend/database (see §11/§12 and `development_status.md`'s Testing Status).
 - Relationships: Belongs to one user, contains many order items; belongs to **exactly one** store (Single-Store Order Rule — "one order must contain products from one store only")
 - Status: In use
 
-**order_items**
+**order_items** *(product_id/variant_id/variant_name/variant_color/variant_size/unit_price/subtotal/created_at added — migration 005)*
 - Purpose: Store snapshot of purchased products
+- Columns: id, order_id, `product_id`, `variant_id`, product_name, `variant_name`, `variant_color`, `variant_size`, quantity, `unit_price`, `subtotal`, `created_at` (plus legacy `price`/`variant_details`, relaxed to nullable by migration 005, no longer written to)
 - Relationships: Belongs to one order
-- Status: Schema defined, not yet used
+- Status: In use
 
 **addresses**
 - Purpose: Store customer delivery addresses
+- Columns: id, user_id, `city`, `area` (nullable), `details` (nullable), `is_default`
+- **Note:** earlier application code (and earlier drafts of this document) assumed a richer shape (`label`, `recipient_name`, `phone`, `address`) that never actually existed on the live table — every address endpoint failed against the real database as a result. Fixed by rewriting `AddressModel` and the address UI (including the Checkout address selector) to use the columns above; no migration was needed since no column was missing, only the Flutter/documentation model was wrong. See `development_status.md`'s "Important Fixes".
 - Relationships: Belongs to one user
-- Status: Schema defined, not yet used
+- Status: In use
 
 **favorites**
 - Purpose: Store favorite products for users
+- Columns: id, user_id, product_id, created_at
 - Relationships: Belongs to one user, one product
-- Status: Schema defined, not yet used
+- Status: In use
 
 **reviews** *(new — Product Reviews & Ratings)*
 - Columns: id, product_id, user_id, rating (TINYINT, 1-5), comment (TEXT, nullable), created_at, updated_at
@@ -676,40 +691,42 @@ All endpoints below reuse the pre-existing `authenticate` / `requireRole` / `req
   - `mobail/lib/config/api_config.dart`
 - **Implementation Notes**: Complete authentication flow with MVVM architecture, client-side validation, API integration, error handling, JWT token storage, splash screen with animation, authentication state management, startup routing
 
+*(Correction, 2026-09-14: the seven sections immediately below — Home through Profile — were a stale snapshot from before any of these screens existed. All seven are in fact fully implemented and have been verified live along with the rest of the customer flow; see §10's Project Structure for the actual file list and §12/`development_status.md` for verification status. Left as historical record rather than deleted, per this document's own "preserve history" rule.)*
+
 ### Home
-- **Status**: Planned
-- **Related Files**: None yet
-- **Implementation Notes**: Not started
+- **Status**: ✅ Completed
+- **Related Files**: `mobail/lib/features/home/presentation/pages/home_page.dart`, `home_viewmodel.dart` (see §10 Project Structure)
+- **Implementation Notes**: Dynamic greeting, categories, featured stores, search entry point, bottom navigation shell shared with Profile.
 
 ### Categories
-- **Status**: Planned
-- **Related Files**: None yet
-- **Implementation Notes**: Not started
+- **Status**: ✅ Completed (flat list only — no parent-child hierarchy; see the `categories` table note in §5)
+- **Related Files**: `mobail/lib/features/categories/presentation/pages/categories_page.dart`, `category_viewmodel.dart`
+- **Implementation Notes**: Browse categories, filter products by category.
 
 ### Stores
-- **Status**: Planned
-- **Related Files**: None yet
-- **Implementation Notes**: Not started
+- **Status**: ✅ Completed
+- **Related Files**: `mobail/lib/features/stores/presentation/pages/stores_page.dart`, `store_viewmodel.dart`
+- **Implementation Notes**: Browse active stores; Store → Products navigation.
 
 ### Products
-- **Status**: Planned
-- **Related Files**: None yet
-- **Implementation Notes**: Not started
+- **Status**: ✅ Completed (listing, details, filtering/sorting, reviews)
+- **Related Files**: `mobail/lib/features/products/presentation/pages/products_page.dart`, `product_details_page.dart`, `product_filter_sheet.dart`, viewmodels
+- **Implementation Notes**: Images, variants, Add to Cart (with server-side stock enforcement), rating summary + review list.
 
 ### Cart
-- **Status**: Planned
-- **Related Files**: None yet
-- **Implementation Notes**: Not started
+- **Status**: ✅ Completed (single-store rule, server-side stock enforcement on both add and quantity-update)
+- **Related Files**: `mobail/lib/features/cart/presentation/pages/cart_page.dart`, `cart_viewmodel.dart`
+- **Implementation Notes**: Add/update/remove/clear; "+" control disabled and explained once stock limit is reached (see `development_status.md`'s Important Fixes).
 
 ### Orders
-- **Status**: Planned
-- **Related Files**: None yet
-- **Implementation Notes**: Not started
+- **Status**: ✅ Completed (checkout, order history, order details, cancellation)
+- **Related Files**: `mobail/lib/features/orders/presentation/pages/checkout_page.dart`, `order_success_page.dart`, `orders_page.dart`, `order_details_page.dart`, `order_viewmodel.dart`
+- **Implementation Notes**: Cash on Delivery only; saved-address selection in checkout (dropdown fixed for multi-line overflow, see Important Fixes); order numeric fields normalized to real JSON numbers server-side.
 
 ### Profile
-- **Status**: Planned
-- **Related Files**: None yet
-- **Implementation Notes**: Not started
+- **Status**: ✅ Completed (view-only — see gap noted in §13)
+- **Related Files**: `mobail/lib/features/home/presentation/pages/profile_page.dart`
+- **Implementation Notes**: Name/role display, language selector, navigation to Orders/Favorites/Addresses/(Store Owner Dashboard if applicable), logout. No profile editing (name/phone/email/password) exists yet.
 
 ### Design System
 - **Status**: Completed
@@ -1101,9 +1118,11 @@ database/
 └── migrations/
     ├── 001_create_reviews_table.sql              # Adds the `reviews` table
     ├── 002_add_roles_ownership_single_store.sql  # Adds users.role, stores.owner_id, carts.store_id, orders.store_id
-    └── 003_add_product_is_active.sql             # Adds products.is_active (Store Owner Dashboard soft-delete)
+    ├── 003_add_product_is_active.sql             # Adds products.is_active (Store Owner Dashboard soft-delete)
+    ├── 004_widen_order_status_enum.sql           # Widens orders.status to include preparing/shipped
+    └── 005_align_orders_cart_schema.sql          # Aligns orders/order_items/cart_items/product_images/product_variants with the columns the app code already expected
 ```
-Run manually, in order, against your local `beep_beep` database — no automated migration runner exists yet (see §15).
+All five confirmed applied to the live database as of 2026-09-14 (see §5, §11). Run manually, in order, against your local `beep_beep` database — no automated migration runner exists yet (see §15).
 
 ## 11. Git History / Milestones
 
@@ -1176,7 +1195,8 @@ Run manually, in order, against your local `beep_beep` database — no automated
 - **Localization Implemented**: App-wide English/Arabic localization via `flutter_localizations` + ARB/gen_l10n, RTL/LTR support, language selector with persistence — infrastructure step completed ahead of Product Reviews & Ratings
 - **Product Reviews & Ratings Implemented**: New `reviews` table + migration, review API (create/edit/delete/list/eligibility) with purchase verification and ownership enforcement, product average rating and review count computed on read, Flutter rating summary + review list + submit/edit UI on Product Details, fully localized — backend verified end-to-end in a local sandbox MySQL instance
 - **Store Owner Dashboard Implemented**: New `products.is_active` column + migration, product create/update/deactivate + order status-transition endpoints reusing the existing role/ownership middleware unmodified, DB-fresh `GET /api/auth/me`, role-gated Flutter dashboard (4-tab shell: Dashboard/Products/Orders/Stores) reached from a new Profile button, fully localized (44 new keys) — backend verified end-to-end in a local sandbox MariaDB instance (47/47 regression + 54/54 new checks)
-- **Stabilization Audit (2026-08-30)**: Live database verified directly via phpMyAdmin (not a sandbox) — migrations 001–003 confirmed applied correctly (all expected tables/columns/FKs/indexes present, seed data consistent with roles/ownership). Found and fixed a critical, previously-undetected schema mismatch: the live `orders.status` enum was missing `preparing`/`shipped`, so store-owner order status updates past `confirmed` would fail (see `database/migrations/004_widen_order_status_enum.sql` — written and verified, application to the live database is the user's own next manual step). Found and closed a confirmed gap: product reactivation (`is_active: 0 → 1`) had backend repository support but no route/service/Flutter wiring at all — implemented end-to-end (`PATCH /api/products/:id/reactivate`, `StoreOwnerRepository`/`OwnerProductViewModel`/UI, 3 new EN/AR keys). No other confirmed issues found in role gating, ownership enforcement, single-store cart/order enforcement, or customer-flow regression risk.
+- **Stabilization Audit (2026-08-30)**: Live database verified directly via phpMyAdmin (not a sandbox) — migrations 001–003 confirmed applied correctly (all expected tables/columns/FKs/indexes present, seed data consistent with roles/ownership). Found and fixed a critical, previously-undetected schema mismatch: the live `orders.status` enum was missing `preparing`/`shipped`, so store-owner order status updates past `confirmed` would fail (see `database/migrations/004_widen_order_status_enum.sql`). Found and closed a confirmed gap: product reactivation (`is_active: 0 → 1`) had backend repository support but no route/service/Flutter wiring at all — implemented end-to-end (`PATCH /api/products/:id/reactivate`, `StoreOwnerRepository`/`OwnerProductViewModel`/UI, 3 new EN/AR keys). Also found (same session, via running the real backend against the real database for the first time): `orders`/`order_items`/`cart_items`/`product_images`/`product_variants` were still missing multiple columns the application code had been written against since the Orders/Reviews/Store Owner Dashboard features (checkout, order history, and add-to-cart were all failing with 500s against the live database) — written up and fixed via `database/migrations/005_align_orders_cart_schema.sql`. Also found and fixed the live `addresses` table's real shape (`city`/`area`/`details`/`is_default`, not the `label`/`recipient_name`/`phone`/`address` the code assumed) — `AddressModel` and the checkout address selector were corrected to match.
+- **Customer + Store Owner Flow Verification (2026-09-14)**: Both migrations 004 and 005 confirmed applied to the live database. Full customer flow (Products → Favorites → Addresses → Cart → Checkout → Orders → Order Details → cancellation) and full Store Owner flow (Dashboard → Products → Orders → status transitions) re-verified end-to-end against the real running backend and real database — not a sandbox. Four bugs found and fixed: the checkout saved-address selector's `RenderFlex` overflow (`DropdownButtonFormField` closed-display sizing, fixed via `selectedItemBuilder`); the cart's quantity "+" control (`PATCH /api/cart/items/:id`) had no stock check at all, letting a customer exceed available stock (fixed server-side, plus a disabled "+" control and explanatory message in Flutter); `orders`/`order_items` DECIMAL columns were returned as JSON strings, crashing "My Orders" after a successful checkout (fixed by normalizing in `orderRepository.js`, across all four order-reading functions including the store-owner-scoped ones); the Store Owner Products endpoint had the identical DECIMAL-as-string bug on `product_variants.price` (fixed the same way in `productRepository.js`). A full order lifecycle (`pending → confirmed → preparing → shipped → delivered`) and an authorization matrix (unauthenticated/customer/correct owner/wrong owner) were exercised live via the real API. `flutter pub get`/`flutter analyze` passed (no new issues); Flutter UI/device runtime testing was **not** performed (no emulator/device available). Work committed and pushed as `34b5d7b "Complete customer and store owner flows"`.
 
 ## 12. Current Status
 
@@ -1191,8 +1211,8 @@ Run manually, in order, against your local `beep_beep` database — no automated
 - **Favorites API**: ✅ Completed
 - **Address API**: ✅ Completed
 - **Category API**: ✅ Completed
-- **Review API**: ✅ Completed (create/edit/delete/list/eligibility, purchase-verified, ownership-enforced) — verified end-to-end against a local sandbox MySQL instance (seeded data, real HTTP requests via curl); see §14/report for details
-- **Store Owner Dashboard API**: ✅ Completed (store list, dashboard stats, product create/update/deactivate/reactivate, order detail/status-update — see §6) — verified end-to-end against a local sandbox MariaDB instance (47/47 regression + 54/54 new checks); live database schema separately verified 2026-08-30 (see Stabilization Audit note above)
+- **Review API**: ✅ Completed (create/edit/delete/list/eligibility, purchase-verified, ownership-enforced) — verified end-to-end against a real database via live HTTP requests
+- **Store Owner Dashboard API**: ✅ Completed (store list, dashboard stats, product create/update/deactivate/reactivate, order detail/status-update — see §6) — re-verified live 2026-09-14 against the real running backend and real database, including a full order-lifecycle test and an authorization matrix (unauthenticated/customer/correct owner/wrong owner); see the 2026-09-14 milestone in §11
 - **Admin Features**: ❌ Not started
 
 ### Flutter
@@ -1207,18 +1227,20 @@ Run manually, in order, against your local `beep_beep` database — no automated
 - **Search Screen**: ✅ Completed
 - **Favorites Screen**: ✅ Completed
 - **Addresses Screen**: ✅ Completed
-- **Reviews (Product Details integration)**: ✅ Implemented (rating summary, review list, write/edit/delete flow); statically verified only — see caveat below
-- **Store Owner Dashboard**: ✅ Implemented (dashboard home, product management, order management, store switcher, role-gated Profile entry point — see §8); statically verified only — see caveat below
+- **Reviews (Product Details integration)**: ✅ Implemented (rating summary, review list, write/edit/delete flow)
+- **Store Owner Dashboard**: ✅ Implemented (dashboard home, product management, order management, store switcher, role-gated Profile entry point — see §8)
 - **MVVM Architecture**: ✅ Completed (implemented for all features)
 - **API Service Layer**: ✅ Completed
 - **State Management**: ✅ Completed (ChangeNotifier pattern)
 - **JWT Token Storage**: ✅ Completed (SharedPreferences)
-- **Localization (English/Arabic)**: ✅ Implemented, statically verified (ARB key parity, no leftover hardcoded strings; 320 keys, full EN/AR parity confirmed programmatically after adding Store Owner Dashboard strings; the 20 Reviews-feature keys missing from the generated Dart files were also found and fixed — see the Localization Correction note in §8). ⚠️ `flutter analyze`/`flutter pub get`/on-device build not run this session — Flutter/Dart SDK download was blocked by the cloud sandbox's network policy (confirmed again this session: `pub.dev`/`storage.googleapis.com` both return a blocked CONNECT tunnel) and no local device shell was available. Run these locally to confirm before treating the Flutter side as fully verified.
+- **Localization (English/Arabic)**: ✅ Implemented (ARB key parity, no leftover hardcoded strings, full EN/AR parity, RTL layout).
+- **Flutter verification (2026-09-14)**: `flutter pub get` and `flutter analyze` both run successfully against a local Flutter SDK — `analyze` passed with only pre-existing issues (a couple of unused imports/local variable in `store_owner_*` pages, a handful of `use_build_context_synchronously` infos, minor lint notes in the generated l10n files), none introduced by recent changes. ⚠️ **On-device/emulator runtime testing has still never been performed in any session** — no device/emulator was available. Every claim above about Flutter screens working is based on static analysis plus reasoning from live backend API responses against the Dart parsing code, not an actually-running app. Treat runtime UI/navigation behavior as unverified.
 
 ### Database
 - **Initial Schema**: ✅ Completed
-- **Migration System**: ❌ Not implemented
-- **Seed Data**: ❌ Not implemented
+- **Migrations 001–005**: ✅ All confirmed applied to the live database as of 2026-09-14 (see §5 and §11's 2026-09-14 milestone)
+- **Migration System (automated runner)**: ❌ Not implemented — migrations are hand-run `.sql` files, no tracking table or runner tool
+- **Seed Data**: ✅ Implemented (`backend/src/seeders/seed.js`) — see §15/Technical Debt in `development_status.md`
 
 ### Security
 - **Password Hashing**: ✅ Completed (bcrypt)
@@ -1230,32 +1252,27 @@ Run manually, in order, against your local `beep_beep` database — no automated
 
 ## 13. Pending Work
 
-### Immediate Next Steps
-- Implement advanced search with filters
-- Implement user profile management (beyond logout and addresses)
-- Add notification system for order updates
-- Implement product recommendations
+*(Corrected 2026-09-14 — the "Later Features" list below was stale: product catalog/cart/orders/favorites/categories/search are all long since implemented, see §8/§12. Replaced with the actual current gaps.)*
 
-### Later Features
-- Product catalog and browsing
-- Store management
-- Shopping cart functionality
-- Order processing and management
-- User profile management
-- Favorites/wishlist functionality
-- Category browsing
-- Search functionality
+### Next Planned Feature
+- **Admin Dashboard.** Explicit next step per `CLAUDE.md`. The `admin`-role bypass already exists and is tested in `requireRole`/`requireStoreOwnership`/`requireProductOwnership` (§7) but is currently unused — no admin routes/controllers/Flutter screens exist yet, and no admin account exists in seed data.
 
-### Long-Term Features
-- Admin dashboard
-- Store creation flow for store owners (v1 of the Store Owner Dashboard is list/switch/manage only)
-- Product image upload (currently URL-based only)
-- Delivery driver integration
-- Payment processing
-- Multi-city expansion
-- Advanced search and filtering
-- Notifications system
+### Known Gaps in Otherwise-Completed Features
+- Store creation flow for store owners (v1 of the Store Owner Dashboard is list/switch/manage-existing-stores only — no `POST /api/stores`)
+- Product image upload (URL-based only; no file/multipart upload endpoint or UI anywhere)
+- User profile management beyond logout, language selection, and addresses (no edit name/phone/email, no password change)
+- Category parent-child hierarchy (flat list only — no `parent_id` column or logic)
+
+### Not Started
+- Payment gateway integration (Stripe, PayPal, etc. — `payment_method`/`payment_status` columns exist but are placeholder-only)
+- Product recommendations
 - Coupon/discount system
+- Notifications system
+- Delivery driver integration
+- Multi-city expansion
+- Refresh tokens, password reset, email/phone verification, account lockout, MFA
+- Automated test suite (backend or Flutter)
+- Automated database migration runner
 
 ## 14. Important Technical Decisions
 
@@ -1292,7 +1309,7 @@ Run manually, in order, against your local `beep_beep` database — no automated
 ## 15. Known Issues / Technical Debt
 
 ### Known Issues
-- None currently identified
+- None currently identified as of the 2026-09-14 verification. Significant bugs found and fixed during the 2026-08-30 stabilization audit and the 2026-09-14 flow verification (checkout address-selector overflow, cart stock-accumulation gap, orders/store-owner-product DECIMAL-as-JSON-string bugs, the addresses schema mismatch) are documented concisely in `development_status.md`'s "Important Fixes" and in the §11 milestone entries above — not repeated here in full.
 
 ### Technical Debt
 - **Test Coverage**: Backend has no automated tests yet
@@ -1352,4 +1369,4 @@ Run manually, in order, against your local `beep_beep` database — no automated
 
 **Document Maintenance**: This file must be updated after every significant project change to maintain its accuracy as the primary context document for future development sessions.
 
-**Last Updated**: 2026-08-30 (Stabilization audit: live database verified, orders.status enum gap found/fixed via migration 004, product reactivation gap closed)
+**Last Updated**: 2026-09-14 (Customer + Store Owner flow verification: full live API/database testing of both flows, complete order lifecycle test, authorization matrix; migrations 004–005 confirmed applied; checkout overflow, cart stock-validation, and orders/store-owner-product DECIMAL bugs found and fixed; several stale sections corrected — see §2, §8, §11–§13; work committed and pushed as `34b5d7b`)

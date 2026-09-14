@@ -51,10 +51,26 @@ const create = async (userData) => {
   return newUser[0];
 };
 
+// Admin Dashboard: user counts grouped by role, for the platform-wide
+// dashboard stats endpoint. Same one-query-then-reduce shape as
+// orderRepository.countByStoreIdGroupedByStatus (Store Owner Dashboard), just
+// unscoped -- there is no ownership/store concept for users to filter by.
+const countGroupedByRole = async () => {
+  const [rows] = await pool.execute(
+    'SELECT role, COUNT(*) as count FROM users GROUP BY role'
+  );
+  const counts = {};
+  for (const row of rows) {
+    counts[row.role] = Number(row.count);
+  }
+  return counts;
+};
+
 module.exports = {
   findByEmail,
   findByEmailWithPassword,
   findByPhone,
   findById,
-  create
+  create,
+  countGroupedByRole
 };

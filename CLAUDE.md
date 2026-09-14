@@ -60,9 +60,15 @@
 
 \## Quick Status
 
-\- \*\*Completed:\*\* Authentication, Home, Stores, Products (with filtering), Cart, Checkout, Orders, Search, Favorites, Addresses, Categories, Localization (EN/AR), Reviews \& Ratings, Store Owner Dashboard (store management, product management incl. reactivation, order management with status transitions, role-based authorization, single-store-per-order enforcement).
+\- \*\*Completed (customer flow):\*\* Authentication, Home/Stores/Categories, Products \& Product Details, Reviews \& Ratings, Search, Favorites, Addresses, Cart (single-store rule, server-side stock enforcement), Checkout, Orders \& Order Details, order cancellation, Localization (EN/AR, RTL).
 
-\- \*\*Not Started:\*\* Admin Dashboard, Payment Gateways, Advanced Analytics.
+\- \*\*Completed (store owner flow):\*\* Store Owner Dashboard (dashboard statistics, store products, product CRUD incl. soft-delete/reactivation, store orders \& order details, order status transitions, ownership authorization).
+
+\- \*\*Order lifecycle (as implemented):\*\* `pending → confirmed → preparing → shipped → delivered`, one step at a time, enforced server-side. The legacy `shipping` DB enum value is unused by the application (kept only for backward compatibility) and is \*\*not\*\* an application state.
+
+\- \*\*Verification (2026-09-14):\*\* Full customer and store-owner flows re-verified against the real backend/database (live API testing, authorization matrix, full order lifecycle end-to-end). Several DECIMAL/string and UI bugs found and fixed (see `development_status.md`). `flutter pub get`/`flutter analyze` passed; on-device Flutter runtime testing was not performed (no emulator/device available).
+
+\- \*\*Not Started:\*\* Admin Dashboard, Store creation flow, Product image upload, User profile editing, Payment Gateways, Product Recommendations, Coupons, Notifications, Delivery-driver integration, Multi-city support, Advanced Analytics.
 
 
 
@@ -80,7 +86,7 @@
 
 \## Immediate Next Step (Context)
 
-Store Owner Dashboard is implemented and stabilized (2026-08-30 stabilization audit: DB schema verified against live database, product reactivation gap closed, orders.status enum widened via migration 004 to match the order fulfillment state machine). The next logical step is the \*\*Admin Dashboard\*\*. Always verify this with `docs/AI\_PROJECT\_BRIEF.md` before starting.
+The full customer flow (Auth → Home/Stores/Categories → Products → Cart → Checkout → Orders) and the full Store Owner Dashboard flow (dashboard → products → orders → status transitions) have both been re-verified end-to-end against the real backend and live database, including the complete order lifecycle and an authorization matrix (unauthenticated / customer / correct owner / wrong owner). All bugs found during that verification (checkout address-selector overflow, cart stock accumulation, orders/store-owner-product DECIMAL-to-JSON-number normalization) are fixed. This work is committed and pushed. The next logical step is the \*\*Admin Dashboard\*\*. Always verify current status with `development_status.md` and `docs/AI\_PROJECT\_BRIEF.md` before starting.
 
 
 

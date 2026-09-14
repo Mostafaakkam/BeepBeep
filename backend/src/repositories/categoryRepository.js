@@ -38,8 +38,16 @@ const getProductsByCategory = async (categoryId) => {
   return products;
 };
 
+// Admin Dashboard: total category count for the platform-wide dashboard
+// stats endpoint.
+const countAll = async () => {
+  const [rows] = await pool.execute('SELECT COUNT(*) as count FROM categories');
+  return Number(rows[0].count);
+};
+
 module.exports = {
   getAll,
   findById,
-  getProductsByCategory
+  getProductsByCategory,
+  countAll
 };

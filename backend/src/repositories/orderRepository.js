@@ -384,12 +384,27 @@ const updateStatus = async (orderId, storeId, newStatus, expectedCurrentStatus) 
   return result.affectedRows > 0;
 };
 
+// Admin Dashboard: order counts grouped by status, platform-wide -- sibling
+// of countByStoreIdGroupedByStatus (Store Owner Dashboard), identical shape,
+// just without the WHERE store_id filter.
+const countAllGroupedByStatus = async () => {
+  const [rows] = await pool.execute(
+    'SELECT status, COUNT(*) as count FROM orders GROUP BY status'
+  );
+  const counts = {};
+  for (const row of rows) {
+    counts[row.status] = Number(row.count);
+  }
+  return counts;
+};
+
 module.exports = {
   findByUserId,
   findById,
   findByIdForStore,
   findByStoreId,
   countByStoreIdGroupedByStatus,
+  countAllGroupedByStatus,
   updateStatus,
   createOrder,
   cancelOrder,

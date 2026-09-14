@@ -310,6 +310,25 @@ const countByStoreId = async (storeId) => {
   return rows[0].count;
 };
 
+// Admin Dashboard: platform-wide product counts split by is_active, unlike
+// countByStoreId (Store Owner Dashboard) which is scoped to one store and
+// counts regardless of is_active. is_active is TINYINT(1) NOT NULL DEFAULT 1
+// (migration 003), so every row is unambiguously 0 or 1.
+const countAllGroupedByActive = async () => {
+  const [rows] = await pool.execute(
+    'SELECT is_active, COUNT(*) as count FROM products GROUP BY is_active'
+  );
+  const counts = { active: 0, inactive: 0 };
+  for (const row of rows) {
+    if (Number(row.is_active) === 1) {
+      counts.active = Number(row.count);
+    } else {
+      counts.inactive = Number(row.count);
+    }
+  }
+  return counts;
+};
+
 module.exports = {
   findAll,
   findById,
@@ -318,5 +337,6 @@ module.exports = {
   create,
   update,
   setActive,
-  countByStoreId
+  countByStoreId,
+  countAllGroupedByActive
 };
